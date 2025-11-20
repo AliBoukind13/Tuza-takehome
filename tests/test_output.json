@@ -4,11 +4,11 @@
   "payment_provider": "Dojo",
   "statement_date": "2023-11-25",
   "authorisation_fee": null,
-  "registered_company": true,
+  "registered_company": null,
   "merchant_category_code": null,
   "transaction_charges": [
     {
-      "reasoning": "\u2018Mastercard Debit (inc. prepaid)\u2019 implies consumer debit; no online/CNP or region specified so default to inPerson/uk.",
+      "reasoning": "Scheme: 'Mastercard' keyword -> mastercard. Realm: No 'Business/Corporate' terms -> consumer. Card type: 'Debit (inc. prepaid)' -> debit. Presence: No CNP/MOTO/Web terms -> inPerson (assumed). Region: No region label -> uk (default).",
       "charge_type_description": "Mastercard Debit (inc. prepaid)",
       "charge_type": {
         "scheme": "mastercard",
@@ -24,7 +24,7 @@
       "transactions_value": "\u00a35,096.91"
     },
     {
-      "reasoning": "\u2018Visa Debit (inc. prepaid)\u2019 implies consumer debit; no online/CNP or region specified so default to inPerson/uk.",
+      "reasoning": "Scheme: 'Visa' keyword -> visa. Realm: No 'Business/Corporate' terms -> consumer. Card type: 'Debit (inc. prepaid)' -> debit. Presence: No CNP/MOTO/Web terms -> inPerson (assumed). Region: No region label -> uk (default).",
       "charge_type_description": "Visa Debit (inc. prepaid)",
       "charge_type": {
         "scheme": "visa",
@@ -40,7 +40,7 @@
       "transactions_value": "\u00a34,493.72"
     },
     {
-      "reasoning": "\u2018Mastercard Credit\u2019 indicates consumer credit; no CNP/region specified so default to inPerson/uk.",
+      "reasoning": "Scheme: 'Mastercard' keyword -> mastercard. Realm: No business terms -> consumer. Card type: 'Credit' -> credit. Presence: No CNP terms -> inPerson (assumed). Region: No region label -> uk (default).",
       "charge_type_description": "Mastercard Credit",
       "charge_type": {
         "scheme": "mastercard",
@@ -56,7 +56,7 @@
       "transactions_value": "\u00a3759.10"
     },
     {
-      "reasoning": "\u2018American Express\u2019 treated as amex, consumer credit by default; no CNP/region specified so inPerson/uk.",
+      "reasoning": "Scheme: 'American Express' -> amex. Realm: No business terms -> consumer. Card type: Amex defaulted to credit when not specified -> credit. Presence: No CNP terms -> inPerson (assumed). Region: No region label -> uk (default).",
       "charge_type_description": "American Express",
       "charge_type": {
         "scheme": "amex",
@@ -72,7 +72,7 @@
       "transactions_value": "\u00a3357.28"
     },
     {
-      "reasoning": "\u2018Visa Credit\u2019 indicates consumer credit; no CNP/region specified so default to inPerson/uk.",
+      "reasoning": "Scheme: 'Visa' keyword -> visa. Realm: No business terms -> consumer. Card type: 'Credit' -> credit. Presence: No CNP terms -> inPerson (assumed). Region: No region label -> uk (default).",
       "charge_type_description": "Visa Credit",
       "charge_type": {
         "scheme": "visa",
@@ -88,7 +88,7 @@
       "transactions_value": "\u00a3290.66"
     },
     {
-      "reasoning": "\u2018Non-qualifying\u2019 maps to international region; debit inc. prepaid implies consumer debit.",
+      "reasoning": "Scheme: 'Mastercard' -> mastercard. Realm: No business terms -> consumer. Card type: 'Debit (inc. prepaid)' -> debit. Presence: No CNP terms -> inPerson (assumed). Region: 'Non-qualifying' maps to international per rules.",
       "charge_type_description": "Mastercard Debit (inc. prepaid), Non-qualifying",
       "charge_type": {
         "scheme": "mastercard",
@@ -104,7 +104,7 @@
       "transactions_value": "\u00a3132.40"
     },
     {
-      "reasoning": "\u2018Business\u2019 maps to commercial; assumed credit (not labelled debit). Default inPerson/uk.",
+      "reasoning": "Scheme: 'Mastercard' -> mastercard. Realm: Contains 'Business' -> commercial. Card type: No explicit 'Debit'/'Credit' -> default credit. Presence: No CNP terms -> inPerson (assumed). Region: No region label -> uk (default).",
       "charge_type_description": "Mastercard Business",
       "charge_type": {
         "scheme": "mastercard",
@@ -120,7 +120,7 @@
       "transactions_value": "\u00a398.55"
     },
     {
-      "reasoning": "\u2018Corporate and Purchasing\u2019 maps to commercial credit; default inPerson/uk.",
+      "reasoning": "Scheme: 'Mastercard' -> mastercard. Realm: 'Corporate and Purchasing' -> commercial. Card type: 'Corporate/Purchasing' maps to credit. Presence: No CNP terms -> inPerson (assumed). Region: No region label -> uk (default).",
       "charge_type_description": "Mastercard Corporate and Purchasing",
       "charge_type": {
         "scheme": "mastercard",
@@ -136,7 +136,7 @@
       "transactions_value": "\u00a362.05"
     },
     {
-      "reasoning": "\u2018International\u2019 maps to international region; \u2018Credit\u2019 indicates consumer credit.",
+      "reasoning": "Scheme: 'Mastercard' -> mastercard. Realm: No business terms -> consumer. Card type: 'Credit' -> credit. Presence: No CNP terms -> inPerson (assumed). Region: 'International' -> international.",
       "charge_type_description": "Mastercard Credit, International",
       "charge_type": {
         "scheme": "mastercard",
@@ -152,7 +152,7 @@
       "transactions_value": "\u00a332.25"
     },
     {
-      "reasoning": "\u2018Business Debit\u2019 maps to commercial realm and debit card type; default inPerson/uk.",
+      "reasoning": "Scheme: 'Visa' -> visa. Realm: 'Business' -> commercial. Card type: 'Debit' -> debit. Presence: No CNP terms -> inPerson (assumed). Region: No region label -> uk (default).",
       "charge_type_description": "Visa Business Debit",
       "charge_type": {
         "scheme": "visa",
@@ -168,7 +168,7 @@
       "transactions_value": "\u00a333.85"
     },
     {
-      "reasoning": "\u2018Non-qualifying\u2019 maps to international region; debit inc. prepaid implies consumer debit.",
+      "reasoning": "Scheme: 'Visa' -> visa. Realm: No business terms -> consumer. Card type: 'Debit (inc. prepaid)' -> debit. Presence: No CNP terms -> inPerson (assumed). Region: 'Non-qualifying' maps to international.",
       "charge_type_description": "Visa Debit (inc. prepaid), Non-qualifying",
       "charge_type": {
         "scheme": "visa",
@@ -184,7 +184,7 @@
       "transactions_value": "\u00a321.90"
     },
     {
-      "reasoning": "\u2018EEA\u2019 maps to eea region; debit inc. prepaid implies consumer debit.",
+      "reasoning": "Scheme: 'Mastercard' -> mastercard. Realm: No business terms -> consumer. Card type: 'Debit (inc. prepaid)' -> debit. Presence: No CNP terms -> inPerson (assumed). Region: 'EEA' maps to eea.",
       "charge_type_description": "Mastercard Debit (inc. prepaid), EEA",
       "charge_type": {
         "scheme": "mastercard",

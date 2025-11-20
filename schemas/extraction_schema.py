@@ -160,9 +160,11 @@ class TransactionCharge(BaseModel):
     # CRITICAL FEATURE: Chain of Thought
     # Forces the LLM to explain its choice before committing to an Enum.
     # We added this to make sure we can check the model's logic and adjust if needed
+    # CoT also forces the model to "think through" the problem step by step, avoidinging random guessing
     reasoning: str= Field(
-        None, 
-        description="Brief reasoning for the classification (e.g. 'Found keyword Corporate -> Commercial')"
+        ..., 
+        description="Step-by-step reasoning for EACH classification decision, including any assumptions made (e.g. 'Commercial -> Found keyword Corporate', " \
+        "one for each classification)"
     )
 
 
@@ -223,14 +225,15 @@ class ExtractedStatement(BaseModel):
         alias="authorisationFee",
         description="Auth fee with currency symbol (e.g. '£0.02')"
     )
-    registered_company: bool = Field(
-        True, 
+    registered_company: Optional[bool] = Field(
+        None, 
         alias="registeredCompany",
-        description="True if Limited/Ltd/PLC" # need to be double checked and adapted
+        description="True if Limited/Ltd/PLC, null if no information on company name"
     )
     merchant_category_code: Optional[str] = Field(
         None, 
-        alias="merchantCategoryCode"
+        alias="merchantCategoryCode",
+        description="4-digit MCC if present in statement"
     )
     
     # The Core Data

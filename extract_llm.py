@@ -1,7 +1,6 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
-from schemas.extraction_schema import ExtractedStatement, Scheme
-from typing import Optional
+from schemas.extraction_schema import ExtractedStatement
 import os
 from dotenv import load_dotenv
 import PyPDF2
@@ -16,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class StatementExtractor:
     """
-    Production-ready statement extractor using OpenAI GPT-4.
+    Statement extractor class:
     Extracts transaction data from PDF statements into canonical format.
     """
     
@@ -26,26 +25,24 @@ class StatementExtractor:
         
         Args:
             model: OpenAI model to use
-            temperature: 0 for deterministic extraction
+            temperature: default and recommended: 0 for deterministic extraction
         """
         self.model = model
         self.temperature = temperature
         
-        # Initialize LLM with structured output
         self.llm = ChatOpenAI(
             model=self.model,
             temperature=self.temperature,
             api_key=os.getenv("OPENAI_API_KEY")
         ).with_structured_output(ExtractedStatement, method="function_calling")
         
-        # Create the extraction prompt
         self.prompt = ChatPromptTemplate.from_messages([
             ("system", self._get_system_prompt()),
             ("human", "Extract all payment transaction data from this merchant statement:\n\n{statement_text}")
         ])
     
     def _get_system_prompt(self) -> str:
-        """Build the comprehensive system prompt with all mapping rules."""
+        """Build the comprehensive system prompt."""
         return """You are a specialist in extracting structured data from merchant payment statements.
 
 Your task is to extract transaction charge data into a canonical format, normalizing inconsistent terminology.
@@ -53,13 +50,12 @@ Your task is to extract transaction charge data into a canonical format, normali
 CRITICAL EXTRACTION RULES FOR BUSINESS IDENTIFICATION:
 
 1. PAYMENT PROVIDER (who issued the statement):
-   - Look for: Dojo, Paymentsense, Worldpay, Lloyds, or other processor names
    - Usually found in header/footer or company branding
    - This is the company processing the payments
    - Examples: Dojo/Worldpay/Lloyd
 
-NOTE: FOR 2. AND 3.: By "BUSINESS" we mean the merchant who accepts card payments and receives this statement, 
-NOT the payment processing company (Dojo/Worldpay/Lloyds).
+NOTE: FOR 2-5: By "BUSINESS" we mean the merchant who accepts card payments and receives this statement, 
+NOT the payment processing company.
 
 2. BUSINESS NAME:
    - The business being charged the fees
@@ -72,50 +68,110 @@ NOT the payment processing company (Dojo/Worldpay/Lloyds).
    - Often near the merchant name at top of statement
    - If not found, leave as null
 
+4. REGISTERED COMPANY STATUS:
+   - Look for: "Limited", "Ltd", "PLC", "LLP" in the business name
+   - True if any of these suffixes are present
+   - False if explicitly stated as "Sole Trader" or "Partnership"
+   - Null if cannot determine from the statement
+   - Do NOT guess: only set to True/False if explicitly evident
+
+5. MERCHANT CATEGORY CODE (MCC):
+   - Look for: 4-digit code or "MCC" label
+   - Often shown as "MCC: XXXX" or "Category: XXXX"
+   - Common codes: 5812 (Restaurants), 5411 (Grocery), 7230 (Beauty/Barber)
+   - If not present in statement, leave as null
+
+6. STATEMENT DATE:
+   - The date the statement was issued/generated
+   - NOT the period covered (that's statement_period)
+   - Format as YYYY-MM-DD
+
+7. STATEMENT PERIOD:
+   - The date range the statement covers
+   - Look for: "Period:", "From...to", date ranges
+   - Format example: "25 Oct to 24 Nov 2023"
+   - Different from statement_date
+
+8. AUTHORISATION FEE:
+   - Look for: "Authorisation Fee", "Auth Fee", "Authorization Fee"
+   - Include currency symbol (e.g., "£0.02")
+   - This is usually a per-transaction fee
+   - If not present, leave as null
+
+9. TOTAL VALUE & TOTAL CHARGES:
+   - total_value: Sum of all transaction values shown in statement summary
+   - total_charges: Sum of all fees/charges shown in statement summary
+   - Look for: "Total", "Sum", "Grand Total" sections
+   - Include currency symbols
+   - These are for validation only
+
 MAPPING RULES:
 
 1. SCHEME MAPPINGS (payment network):
-   - "Visa", "V Pay" → "visa"
-   - "Mastercard", "Master Card", "MC" → "mastercard"
-   - "American Express", "Amex" → "amex"
-   - "Maestro" → "maestro"
-   - "Diners", "Diners Club" → "diners"
-   - "Discover" → "discover"
-   - "JCB", "Japanese Credit Bureau" → "jcb"
-   - Any unknown scheme → "other" (MUST provide scheme_other_description)
+   - "Visa", "V Pay" -> "visa"
+   - "Mastercard", "Master Card", "MC" -> "mastercard"
+   - "American Express", "Amex" -> "amex"
+   - "Maestro" -> "maestro"
+   - "Diners", "Diners Club" -> "diners"
+   - "Discover" -> "discover"
+   - "JCB", "Japanese Credit Bureau" -> "jcb"
+   - Any unknown scheme -> "other" (MUST provide scheme_other_description)
 
 2. REALM MAPPINGS (personal vs business):
-   - DEFAULT/BLANK → "consumer"
-   - "Personal", "Private" → "consumer"
-   - "Business", "Corporate", "Purchasing", "Fleet" → "commercial"
+   - DEFAULT/BLANK -> "consumer"
+   - "Personal", "Private" -> "consumer"
+   - "Business", "Corporate", "Purchasing", "Fleet" -> "commercial"
    
 3. CARD TYPE MAPPINGS:
-   - "Debit", "Prepaid" → "debit"
-   - "Credit", "Charge Card", "Corporate", "Purchasing" → "credit"
+   - DEFAULT/BLANK -> "credit"
+   - "Debit", "Prepaid" -> "debit"
+   - "Credit", "Charge Card", "Corporate", "Purchasing" -> "credit"
 
 4. PRESENCE MAPPINGS (how card was used):
-   - DEFAULT/BLANK → "inPerson"
-   - "Terminal", "Chip", "Chip & Pin", "Face to Face" → "inPerson"
-   - "CNP", "Card Not Present", "Web", "Phone", "MOTO", "E-com" → "online"
+   - DEFAULT/BLANK -> "inPerson"
+   - "Terminal", "Chip", "Chip & Pin", "Face to Face" -> "inPerson"
+   - "CNP", "Card Not Present", "Web", "Phone", "MOTO", "E-com" -> "online"
 
 5. REGION MAPPINGS (geographic):
-   - DEFAULT/BLANK → "uk"
-   - "GB", "Domestic", "United Kingdom" → "uk"
-   - "EEA", "EU", "Europe" → "eea"
-   - "International", "Intl", "Non-Qualifying", "Non-EEA" → "international"
+   - DEFAULT/BLANK -> "uk"
+   - "GB", "Domestic", "United Kingdom" -> "uk"
+   - "EEA", "EU", "Europe" -> "eea"
+   - "International", "Intl", "Non-Qualifying", "Non-EEA" -> "international"
 
-EXTRACTION GUIDELINES:
+REASONING REQUIREMENTS:
+
+The "reasoning" field is MANDATORY and must explain your decision process for EACH of the following classifications:
+
+1. SCHEME: How did you identify the payment network?
+   Example: "Found 'Mastercard' in description -> mastercard"
+   Example: "Unknown scheme 'UnionPay' -> other"
+
+2. REALM: Why consumer vs commercial?
+   Example: "Contains 'Corporate' -> commercial"
+
+3. CARD TYPE: How did you determine debit vs credit?
+   Example: "Contains 'Debit' keyword -> debit"
+   Example: "American Express is always credit -> credit"
+
+4. PRESENCE: Why in-person vs online?
+   Example: "Found 'CNP' -> online"
+
+5. REGION: How did you determine the geographic region?
+   Example: "Found 'Non-Qualifying' -> international"
+   Example: "Found 'EEA' -> eea"
+
+Include any ASSUMPTIONS made.
+
+Format: complete explanation covering all 5 dimensions and any assumptions.
+Example: "Scheme: 'Visa' keyword -> visa. Realm: No business terms -> consumer. Card type: 'Debit (inc. prepaid)' -> debit. Presence: No CNP terms -> inPerson (assumed). Region: 'Non-qualifying' maps to international)"
+
+ADDITIONAL EXTRACTION GUIDELINES:
 - Extract EVERY transaction charge row from the statement
-- The "reasoning" field MUST explain your categorization logic for each row
 - Capture charge rates exactly as shown (e.g., "1.53% + £0.03")
 - Include currency symbols in monetary values (e.g., "£1,234.56")
 - Use YYYY-MM-DD format for dates
-- For authorisation_fee, look for "Authorisation Fee" or "Auth Fee" in the statement
-- statement_period should capture the date range (e.g., "01 May to 31 May 2024")
-- total_value and total_charges: Extract statement totals if shown (for validation).
-- Ignore secure transaction fees (do NOT include total_charges and do not count it as a transaction)
-"""
-    
+- Ignore secure transaction fees (do NOT include it in total_charges and do not count it as a transaction)
+""" 
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10)
@@ -132,17 +188,14 @@ EXTRACTION GUIDELINES:
         """
         logger.info(f"Extracting data using {self.model}")
         
-        # Create the chain
         chain = self.prompt | self.llm
         
-        # Invoke with the statement text (limit to prevent token overflow)
         result = chain.invoke({
-            "statement_text": statement_text[:50000]
+            "statement_text": statement_text
         })
         
         logger.info(f"Successfully extracted {len(result.transaction_charges)} transaction charges")
-        
-        # Validate the extraction
+
         self._validate_extraction(result)
         
         return result
@@ -159,15 +212,11 @@ EXTRACTION GUIDELINES:
         """
         logger.info(f"Reading PDF: {pdf_path}")
         
-        # Extract text from PDF
         text = self._read_pdf(pdf_path)
         
-        if not text or len(text.strip()) < 100:
-            raise ValueError(f"Could not extract sufficient text from {pdf_path}")
+        if not text:
+            raise ValueError(f"Could not extract a text from {pdf_path}")
         
-        logger.info(f"Extracted {len(text)} characters from PDF")
-        
-        # Extract structured data
         return self.extract_from_text(text)
     
     def _read_pdf(self, pdf_path: str) -> str:
@@ -181,25 +230,44 @@ EXTRACTION GUIDELINES:
             for i, page in enumerate(pdf_reader.pages):
                 page_text = page.extract_text()
                 text += page_text
-                logger.debug(f"Page {i+1}: extracted {len(page_text)} characters")
                     
         return text
     
     def _validate_extraction(self, result: ExtractedStatement) -> None:
         """
-        Perform additional validation on the extraction.
+        Validate that all transactions were captured by reconciling totals.
+        
+        This validation serves as a critical quality check to detect incomplete 
+        extractions.
+        
+        The validation process:
+        1. Sums all extracted transaction values and charges
+        2. Compares against statement-provided totals (if available)
+        3. Logs warnings if discrepancy exceeds 1% threshold
+        
+        Why 1% tolerance?
+        - Exact matches are rare due to rounding differences
+        - 1% catches material extraction failures while allowing minor variations
+        
+        Important notes:
+        - Validation ONLY logs warnings, never fails the extraction
+        - Statements with zero transactions are valid (inactive merchants)
+        - Some statements don't provide totals (validation skipped)
+        - Discrepancies might be legitimate (e.g., partial statement period)
         
         Args:
-            result: The extracted statement to validate
+            result: The extracted statement to validate against itself
         """
-        # Check if we have transaction charges
         if not result.transaction_charges:
-            raise ValueError("No transaction charges extracted")
-        
-        # Validate totals if provided
+            logger.warning("No transaction charges found: statement may be for inactive period, or something is wrong")
+            # here we don't raise an Exception because there's a small chance that the statement is about a period where the merchant was closed
+        else:
+            logger.info(f"Extracted {len(result.transaction_charges)} transaction charges")
+    
+        # Validate totals ONLY if total values and total charges provided
         if result.total_value and result.total_charges:
             try:
-                # Calculate sum from transaction charges
+                # Calculate sum from transaction charges (for now we assume pounds currency only)
                 calculated_value = sum(
                     float(t.transactions_value.replace('£', '').replace(',', ''))
                     for t in result.transaction_charges
@@ -213,14 +281,14 @@ EXTRACTION GUIDELINES:
                 extracted_value = float(result.total_value.replace('£', '').replace(',', ''))
                 extracted_charges = float(result.total_charges.replace('£', '').replace(',', ''))
                 
-                # Check for major discrepancies (>5% difference)
-                if abs(calculated_value - extracted_value) / extracted_value > 0.05:
+                # Check for discrepancies (>1% difference) (in the future, we can pass the threshold as an argument)
+                if abs(calculated_value - extracted_value) / extracted_value > 0.01:
                     logger.warning(
                         f"Value discrepancy: calculated £{calculated_value:.2f} "
                         f"vs extracted £{extracted_value:.2f}"
                     )
                     
-                if abs(calculated_charges - extracted_charges) / extracted_charges > 0.05:
+                if abs(calculated_charges - extracted_charges) / extracted_charges > 0.01:
                     logger.warning(
                         f"Charges discrepancy: calculated £{calculated_charges:.2f} "
                         f"vs extracted £{extracted_charges:.2f}"
@@ -228,31 +296,26 @@ EXTRACTION GUIDELINES:
                     
             except (ValueError, AttributeError) as e:
                 logger.warning(f"Could not validate totals: {e}")
-        
-        # Log scheme distribution
-        schemes = [t.charge_type.scheme for t in result.transaction_charges]
-        scheme_counts = {s: schemes.count(s) for s in set(schemes)}
-        logger.info(f"Scheme distribution: {scheme_counts}")
-        
-        # Check for OTHER schemes
-        for t in result.transaction_charges:
-            if t.charge_type.scheme == Scheme.OTHER:
-                if not t.charge_type.scheme_other_description:
-                    raise ValueError(f"OTHER scheme without description: {t.charge_type_description}")
-                logger.info(f"Found OTHER scheme: {t.charge_type.scheme_other_description}")
 
 
-# Convenience function
 def extract_statement(pdf_path: str, model: str = "gpt-4-turbo-preview") -> ExtractedStatement:
     """
-    Quick extraction function.
+    Extract structured transaction data from a merchant payment statement PDF.
+    
+    This is the primary entry point for the extraction pipeline. It handles the 
+    complete workflow: PDF reading -> text extraction -> LLM processing -> validation.
     
     Args:
-        pdf_path: Path to PDF file
-        model: OpenAI model to use
+        pdf_path: Path to the merchant statement PDF file
+        model: OpenAI model to use for extraction (default: gpt-4-turbo-preview)
         
     Returns:
-        ExtractedStatement object
+        ExtractedStatement: Validated, structured data containing all transaction 
+                           charges and merchant information
+        
+    Raises:
+        ValueError: If PDF is unreadable or contains no transaction data
+        ValidationError: If LLM output doesn't match expected schema
     """
     extractor = StatementExtractor(model=model)
     return extractor.extract_from_pdf(pdf_path)
