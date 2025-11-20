@@ -1,0 +1,30 @@
+
+
+services:
+  api:
+    build: .
+    command: python -m uvicorn api:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./:/app
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    networks:
+      - app-network
+
+  frontend:
+    build: .
+    command: python -m http.server 3000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./:/app
+    networks:
+      - app-network
+    depends_on:
+      - api
+
+networks:
+  app-network:
+    driver: bridge
