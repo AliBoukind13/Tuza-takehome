@@ -54,7 +54,7 @@ CRITICAL EXTRACTION RULES FOR BUSINESS IDENTIFICATION:
    - This is the company processing the payments
    - Examples: Dojo/Worldpay/Lloyd
 
-NOTE: FOR 2-5: By "BUSINESS" we mean the merchant who accepts card payments and receives this statement, 
+NOTE: FOR 2-6: By "BUSINESS" we mean the merchant who accepts card payments and receives this statement, 
 NOT the payment processing company.
 
 2. BUSINESS NAME:
@@ -63,42 +63,48 @@ NOT the payment processing company.
    - NOT the payment processor's name
    - If cannot determine, use "Unknown"
 
-3. BUSINESS ADDRESS:
+3. BUSINESS ID:
+   - The unique identifier assigned by the payment processor
+   - Look for: "Merchant ID:", "Merchant Number:", "MID:", "Merchant No:"
+   - Often near business name or in statement header
+   - If not found, leave as null
+
+4. BUSINESS ADDRESS:
    - The merchant's business address, NOT the processor's office
    - Often near the merchant name at top of statement
    - If not found, leave as null
 
-4. REGISTERED COMPANY STATUS:
+5. REGISTERED COMPANY STATUS:
    - Look for: "Limited", "Ltd", "PLC", "LLP" in the business name
    - True if any of these suffixes are present
    - False if explicitly stated as "Sole Trader" or "Partnership"
    - Null if cannot determine from the statement
    - Do NOT guess: only set to True/False if explicitly evident
 
-5. MERCHANT CATEGORY CODE (MCC):
+6. MERCHANT CATEGORY CODE (MCC):
    - Look for: 4-digit code or "MCC" label
    - Often shown as "MCC: XXXX" or "Category: XXXX"
    - Common codes: 5812 (Restaurants), 5411 (Grocery), 7230 (Beauty/Barber)
    - If not present in statement, leave as null
 
-6. STATEMENT DATE:
+7. STATEMENT DATE:
    - The date the statement was issued/generated
    - NOT the period covered (that's statement_period)
    - Format as YYYY-MM-DD
 
-7. STATEMENT PERIOD:
+8. STATEMENT PERIOD:
    - The date range the statement covers
    - Look for: "Period:", "From...to", date ranges
    - Format example: "25 Oct to 24 Nov 2023"
    - Different from statement_date
 
-8. AUTHORISATION FEE:
+9. AUTHORISATION FEE:
    - Look for: "Authorisation Fee", "Auth Fee", "Authorization Fee"
    - Include currency symbol (e.g., "£0.02")
    - This is usually a per-transaction fee
    - If not present, leave as null
 
-9. TOTAL VALUE & TOTAL CHARGES:
+10. TOTAL VALUE & TOTAL CHARGES:
    - total_value: Sum of all transaction values shown in statement summary
    - total_charges: Sum of all fees/charges shown in statement summary
    - Look for: "Total", "Sum", "Grand Total" sections

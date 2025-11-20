@@ -206,12 +206,17 @@ class ExtractedStatement(BaseModel):
     """
     Canonical statement extraction format for LLM output.
     """
-    business_name: str = Field(..., alias="businessName")
-    business_address: Optional[BusinessAddress] = Field(None, alias="businessAddress")
     payment_provider: str = Field(
         ..., 
         alias="paymentProvider",
         description="The payment processor issuing the statement (e.g., 'Dojo', 'Worldpay', 'Lloyds')"
+    )
+    business_name: str = Field(..., alias="businessName")
+    business_address: Optional[BusinessAddress] = Field(None, alias="businessAddress")
+    business_id: Optional[str] = Field(
+        None,
+        alias="businessId",
+        description="Business ID/Number assigned by payment processor"
     )
     
     statement_date: str = Field(
