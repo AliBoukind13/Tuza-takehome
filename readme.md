@@ -26,7 +26,7 @@ You can run the project either with Docker (recommended) or directly with Python
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/Tuza-takehome.git
+git clone https://github.com/AliBoukind13/Tuza-takehome.git
 cd Tuza-takehome
 ```
 
