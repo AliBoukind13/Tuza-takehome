@@ -206,6 +206,11 @@ class ExtractedStatement(BaseModel):
     """
     business_name: str = Field(..., alias="businessName")
     business_address: Optional[BusinessAddress] = Field(None, alias="businessAddress")
+    payment_provider: str = Field(
+        ..., 
+        alias="paymentProvider",
+        description="The payment processor issuing the statement (e.g., 'Dojo', 'Worldpay', 'Lloyds')"
+    )
     
     statement_date: str = Field(
         ..., 
@@ -262,45 +267,3 @@ class ExtractedStatement(BaseModel):
         alias="totalCharges",
         description="Total of all charges with symbol"
     )
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "businessName": "The Claydon Hair Company Limited",
-                "statementDate": "2025-10-22",
-                "transactionCharges": [
-                    {
-                        "reasoning": "Row says 'Visa Debit', implies Consumer/UK/InPerson",
-                        "chargeTypeDescription": "Debit cards",
-                        "chargeType": {
-                            "scheme": "visa",
-                            "realm": "consumer",
-                            "cardType": "debit",
-                            "presence": "inPerson",
-                            "region": "uk",
-                            "scheme_other_description": None
-                        },
-                        "chargeRate": "0.56%",
-                        "numberOfTransactions": 159,
-                        "chargeTotal": "£32.66",
-                        "transactionsValue": "£5831.40"
-                    },
-                    {
-                        "reasoning": "Found 'V Pay' which maps to OTHER",
-                        "chargeTypeDescription": "V Pay transactions",
-                        "chargeType": {
-                            "scheme": "other",
-                            "realm": "consumer",
-                            "cardType": "debit",
-                            "presence": "inPerson",
-                            "region": "eea",
-                            "scheme_other_description": "BMCE" 
-                        },
-                        "chargeRate": "0.35%",
-                        "numberOfTransactions": 5,
-                        "chargeTotal": "£1.50",
-                        "transactionsValue": "£425.00"
-                    }
-                ]
-            }
-        }

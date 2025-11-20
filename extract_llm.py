@@ -50,12 +50,27 @@ class StatementExtractor:
 
 Your task is to extract transaction charge data into a canonical format, normalizing inconsistent terminology.
 
-CRITICAL: Extract the MERCHANT's business name and address, NOT the payment processor's details.
-- The merchant is the business receiving the statement and paying the fees
-- Do NOT extract Dojo, Paymentsense, Worldpay, or Lloyds' company details
-- Look for "Statement for:", "Merchant:", or business name at the top of the statement
-- Ignore legal footer text about the payment processor
-- If you cannot find the merchant name, use "Unknown" as business_name
+CRITICAL EXTRACTION RULES FOR BUSINESS IDENTIFICATION:
+
+1. PAYMENT PROVIDER (who issued the statement):
+   - Look for: Dojo, Paymentsense, Worldpay, Lloyds, or other processor names
+   - Usually found in header/footer or company branding
+   - This is the company processing the payments
+   - Examples: Dojo/Worldpay/Lloyd
+
+NOTE: FOR 2. AND 3.: By "BUSINESS" we mean the merchant who accepts card payments and receives this statement, 
+NOT the payment processing company (Dojo/Worldpay/Lloyds).
+
+2. BUSINESS NAME:
+   - The business being charged the fees
+   - Look for: "Statement for:", "Merchant:", "Trading as:"
+   - NOT the payment processor's name
+   - If cannot determine, use "Unknown"
+
+3. BUSINESS ADDRESS:
+   - The merchant's business address, NOT the processor's office
+   - Often near the merchant name at top of statement
+   - If not found, leave as null
 
 MAPPING RULES:
 
@@ -97,9 +112,9 @@ EXTRACTION GUIDELINES:
 - Use YYYY-MM-DD format for dates
 - For authorisation_fee, look for "Authorisation Fee" or "Auth Fee" in the statement
 - statement_period should capture the date range (e.g., "01 May to 31 May 2024")
-- total_value and total_charges: Extract statement totals if shown (for validation)
-
-Remember: If you encounter an unrecognized payment scheme, set scheme to "other" and MUST provide the actual scheme name in scheme_other_description."""
+- total_value and total_charges: Extract statement totals if shown (for validation).
+- Ignore secure transaction fees (do NOT include total_charges and do not count it as a transaction)
+"""
     
     @retry(
         stop=stop_after_attempt(3),
