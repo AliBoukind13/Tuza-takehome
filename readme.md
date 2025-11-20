@@ -382,8 +382,8 @@ This section shows screenshots of the web interface (`index.html`).
 
 ### Web Interface Screenshot 1
 
-![Screenshot of the primary input area for the web interface](assets/imageA.png)
+![Screenshot of the primary input area for the web interface](images/imageA.png)
 
 ### Web Interface Screenshot 2
 
-![Screenshot of the JSON output and download area](assets/imageB.png)
+![Screenshot of the JSON output and download area](images/imageB.png)
