@@ -34,16 +34,39 @@
         
         h1 {
             color: #2c3e50;
-            margin-bottom: 10px;
+            margin-bottom: 30px;
             font-size: 32px;
             font-weight: 700;
         }
         
-        .subtitle {
-            color: #7f8c8d;
-            margin-bottom: 30px;
+        /* Input type selector */
+        .input-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+        
+        .input-type-btn {
+            flex: 1;
+            padding: 12px;
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            color: #666;
             font-size: 15px;
-            font-weight: 400;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .input-type-btn.active {
+            background: #fff5f2;
+            border-color: #ff6b35;
+            color: #ff6b35;
+        }
+        
+        .input-type-btn:hover {
+            background: #fff5f2;
         }
         
         .upload-section {
@@ -87,6 +110,38 @@
         
         .file-input {
             display: none;
+        }
+        
+        /* Text input section */
+        .text-input-section {
+            display: none;
+        }
+        
+        .text-input-section.show {
+            display: block;
+        }
+        
+        .text-area {
+            width: 100%;
+            min-height: 300px;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+        
+        .text-area:focus {
+            outline: none;
+            border-color: #ff6b35;
+        }
+        
+        .text-hint {
+            margin-top: 10px;
+            color: #999;
+            font-size: 13px;
         }
         
         .upload-id-section {
@@ -272,7 +327,6 @@
             font-size: 14px;
         }
         
-        
         .percentage-bar {
             background: #f0f0f0;
             height: 20px;
@@ -343,20 +397,44 @@
         <h1>Merchant Statement Processor</h1>
         
         <div class="upload-section" id="uploadSection">
-            <div class="upload-area" id="uploadArea">
-                <div class="upload-icon">📄</div>
-                <p class="upload-text">Drag and drop your PDF here or click to browse</p>
-                <input type="file" id="fileInput" class="file-input" accept=".pdf">
+            <!-- Input type selector -->
+            <div class="input-selector">
+                <button class="input-type-btn active" id="pdfBtn" onclick="switchToUpload()">
+                    📄 Upload PDF
+                </button>
+                <button class="input-type-btn" id="textBtn" onclick="switchToText()">
+                    📝 Paste Text
+                </button>
             </div>
             
-            <div class="selected-file" id="selectedFile">
-                <div class="file-info">
-                    <span class="file-icon">📎</span>
-                    <span class="file-name" id="fileName"></span>
-                    <span class="remove-file" id="removeFile">✕</span>
+            <!-- PDF Upload Section -->
+            <div id="pdfSection">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📄</div>
+                    <p class="upload-text">Drag and drop your PDF here or click to browse</p>
+                    <input type="file" id="fileInput" class="file-input" accept=".pdf">
+                </div>
+                
+                <div class="selected-file" id="selectedFile">
+                    <div class="file-info">
+                        <span class="file-icon">📎</span>
+                        <span class="file-name" id="fileName"></span>
+                        <span class="remove-file" id="removeFile">✕</span>
+                    </div>
                 </div>
             </div>
             
+            <!-- Text Input Section -->
+            <div class="text-input-section" id="textSection">
+                <textarea 
+                    id="statementText" 
+                    class="text-area" 
+                    placeholder="Paste your statement text here..."
+                ></textarea>
+                <p class="text-hint">Paste the raw text content from your merchant statement</p>
+            </div>
+            
+            <!-- Upload ID and Process Button -->
             <div class="upload-id-section">
                 <div class="input-group">
                     <input type="text" id="uploadId" class="input-field" placeholder="Enter Upload ID (e.g., MERCHANT-001)">
@@ -432,6 +510,26 @@
     <script>
         let selectedFile = null;
         let merchantData = null;
+        let inputMode = 'pdf'; // 'pdf' or 'text'
+        
+        // Input mode switching
+        function switchToUpload() {
+            inputMode = 'pdf';
+            document.getElementById('pdfBtn').classList.add('active');
+            document.getElementById('textBtn').classList.remove('active');
+            document.getElementById('pdfSection').style.display = 'block';
+            document.getElementById('textSection').classList.remove('show');
+            checkCanProcess();
+        }
+        
+        function switchToText() {
+            inputMode = 'text';
+            document.getElementById('textBtn').classList.add('active');
+            document.getElementById('pdfBtn').classList.remove('active');
+            document.getElementById('pdfSection').style.display = 'none';
+            document.getElementById('textSection').classList.add('show');
+            checkCanProcess();
+        }
         
         // Upload area events
         const uploadArea = document.getElementById('uploadArea');
@@ -441,6 +539,7 @@
         const processBtn = document.getElementById('processBtn');
         const uploadId = document.getElementById('uploadId');
         const uploadSection = document.getElementById('uploadSection');
+        const statementText = document.getElementById('statementText');
         
         uploadArea.addEventListener('click', () => fileInput.click());
         
@@ -477,6 +576,7 @@
         });
         
         uploadId.addEventListener('input', checkCanProcess);
+        statementText.addEventListener('input', checkCanProcess);
         
         function handleFileSelect(file) {
             if (file.type !== 'application/pdf') {
@@ -491,15 +591,31 @@
         }
         
         function checkCanProcess() {
-            processBtn.disabled = !selectedFile || !uploadId.value.trim();
+            const hasUploadId = uploadId.value.trim();
+            
+            if (inputMode === 'pdf') {
+                processBtn.disabled = !selectedFile || !hasUploadId;
+            } else {
+                processBtn.disabled = !statementText.value.trim() || !hasUploadId;
+            }
         }
         
         processBtn.addEventListener('click', async () => {
-            if (!selectedFile || !uploadId.value.trim()) return;
+            const uploadIdValue = uploadId.value.trim();
+            if (!uploadIdValue) return;
             
             const formData = new FormData();
-            formData.append('file', selectedFile);
-            formData.append('merchantStatementUploadId', uploadId.value.trim());
+            formData.append('merchantStatementUploadId', uploadIdValue);
+            
+            // Add either file or text based on mode
+            if (inputMode === 'pdf') {
+                if (!selectedFile) return;
+                formData.append('file', selectedFile);
+            } else {
+                const textValue = statementText.value.trim();
+                if (!textValue) return;
+                formData.append('statementText', textValue);
+            }
             
             // Hide upload section after clicking process
             uploadSection.classList.add('hidden');

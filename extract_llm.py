@@ -304,16 +304,22 @@ ADDITIONAL EXTRACTION GUIDELINES:
                 logger.warning(f"Could not validate totals: {e}")
 
 
-def extract_statement(pdf_path: str, model: str = "gpt-4-turbo-preview") -> ExtractedStatement:
+def extract_statement(
+    input_data: str, 
+    model: str = "gpt-5",
+    is_pdf: bool = None
+) -> ExtractedStatement:
     """
-    Extract structured transaction data from a merchant payment statement PDF.
+    Extract structured transaction data from a merchant payment statement.
     
-    This is the primary entry point for the extraction pipeline. It handles the 
-    complete workflow: PDF reading -> text extraction -> LLM processing -> validation.
+    This is the primary entry point for the extraction pipeline. It handles both:
+    - PDF files: PDF reading -> text extraction -> LLM processing -> validation
+    - Raw text: Direct LLM processing -> validation
     
     Args:
-        pdf_path: Path to the merchant statement PDF file
+        input_data: Either a path to PDF file OR raw statement text
         model: OpenAI model to use for extraction (default: gpt-4-turbo-preview)
+        is_pdf: If None, auto-detect based on input. If True/False, force interpretation.
         
     Returns:
         ExtractedStatement: Validated, structured data containing all transaction 
@@ -324,4 +330,11 @@ def extract_statement(pdf_path: str, model: str = "gpt-4-turbo-preview") -> Extr
         ValidationError: If LLM output doesn't match expected schema
     """
     extractor = StatementExtractor(model=model)
-    return extractor.extract_from_pdf(pdf_path)
+    
+    if is_pdf is None:
+        is_pdf =  input_data.endswith('.pdf')
+    
+    if is_pdf:
+        return extractor.extract_from_pdf(input_data)
+    else:
+        return extractor.extract_from_text(input_data)

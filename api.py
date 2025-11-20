@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from typing import Optional
 import tempfile
 import os
 import logging
@@ -23,36 +24,64 @@ app.add_middleware(
 
 @app.post("/extract")
 async def extract_statement_endpoint(
-    file: UploadFile = File(..., description="PDF statement file"),
+    file: Optional[UploadFile] = File(None, description="PDF statement file"),
+    statementText: Optional[str] = Form(None, description="Raw statement text"),
     merchantStatementUploadId: str = Form(..., description="Unique upload ID")
 ):
     """
-    Extract info and transform a merchant statement PDF into a NewMerchantStatement output
+    Extract and transform a merchant statement from PDF or raw text.
     
     Endpoint: POST /extract
     
-    Accepts:
+    Accepts (one of):
     - file: PDF statement (multipart/form-data)
-    - merchantStatementUploadId: Unique identifier for this upload
+    - statementText: Raw statement text (form data)
+    Plus:
+    - merchantStatementUploadId: identifier for this upload
     
     Returns:
-    - Structured JSON in internal format with transaction breakdowns
+    - Structured JSON in internal format (NewMerchantStatement)
     """
     
-    # Validate file type
-    if not file.filename.endswith('.pdf'):
-        raise HTTPException(status_code=400, detail="Only PDF files are accepted")
+    # Validate input - must have either file OR text, not both
+    if file and statementText:
+        raise HTTPException(
+            status_code=400, 
+            detail="Provide either file or statementText, not both"
+        )
     
-    # Create temp file
-    with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
-        content = await file.read()
-        tmp.write(content)
-        tmp_path = tmp.name
+    if not file and not statementText:
+        raise HTTPException(
+            status_code=400,
+            detail="Must provide either file or statementText"
+        )
     
     try:
-        logger.info(f"Extracting from {file.filename}")
-        extracted = extract_statement(tmp_path,"gpt-5")
-
+        # Extract based on input type
+        if file:
+            # PDF file path
+            if not file.filename.endswith('.pdf'):
+                raise HTTPException(status_code=400, detail="File must be a PDF")
+            
+            # Create temp file
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
+                content = await file.read()
+                tmp.write(content)
+                tmp_path = tmp.name
+            
+            try:
+                logger.info(f"Extracting from PDF: {file.filename}")
+                extracted = extract_statement(tmp_path,"gpt-5")
+            finally:
+                # Cleanup temp file
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+        else:
+            # Raw text
+            logger.info(f"Extracting from raw text ({len(statementText)} chars)")
+            extracted = extract_statement(statementText,"gpt-5", is_pdf=False)
+        
+        # Transform to internal format
         logger.info(f"Transforming for upload ID: {merchantStatementUploadId}")
         transformer = StatementTransformer()
         result = transformer.transform(extracted, upload_id=merchantStatementUploadId)
@@ -66,14 +95,9 @@ async def extract_statement_endpoint(
         logger.error(f"Error processing: {str(e)}")
         logger.exception("Full traceback:")
         raise HTTPException(
-            status_code=500, 
+            status_code=500,
             detail=f"Error processing statement: {str(e)}"
         )
-    
-    finally:
-        # Cleanup temp file
-        if os.path.exists(tmp_path):
-            os.unlink(tmp_path)
 
 @app.get("/")
 async def root():
