@@ -118,7 +118,7 @@ class Region(str, Enum):
 
 # Nested components
 
-class BusinessAddress(BaseModel):
+class MerchantAddress(BaseModel):
     line1: Optional[str] = Field(None, description="Primary street address")
     line2: Optional[str] = Field(None, description="Secondary address line (County/Region)")
     line3: Optional[str] = Field(None, description="Extra address info")
@@ -211,12 +211,12 @@ class ExtractedStatement(BaseModel):
         alias="paymentProvider",
         description="The payment processor issuing the statement (e.g., 'Dojo', 'Worldpay', 'Lloyds')"
     )
-    business_name: str = Field(..., alias="businessName")
-    business_address: Optional[BusinessAddress] = Field(None, alias="businessAddress")
-    business_id: Optional[str] = Field(
+    merchant_name: str = Field(..., alias="merchantName")
+    merchant_address: Optional[MerchantAddress] = Field(None, alias="merchantAddress")
+    merchant_id: Optional[str] = Field(
         None,
-        alias="businessId",
-        description="Business ID/Number assigned by payment processor"
+        alias="merchantId",
+        description="merchant ID/Number assigned by payment processor"
     )
     
     statement_date: str = Field(

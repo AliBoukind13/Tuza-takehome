@@ -54,23 +54,23 @@ CRITICAL EXTRACTION RULES FOR BUSINESS IDENTIFICATION:
    - This is the company processing the payments
    - Examples: Dojo/Worldpay/Lloyd
 
-NOTE: FOR 2-6: By "BUSINESS" we mean the merchant who accepts card payments and receives this statement, 
-NOT the payment processing company.
+NOTE: "MERCHANT" refers to the business that accepts card payments and receives this statement,
+NOT the payment processing company (Dojo/Worldpay/Lloyds).
 
-2. BUSINESS NAME:
+2. MERCHANT NAME:
    - The business being charged the fees
    - Look for: "Statement for:", "Merchant:", "Trading as:"
    - NOT the payment processor's name
    - If cannot determine, use "Unknown"
 
-3. BUSINESS ID:
+3. MERCHANT ID:
    - The unique identifier assigned by the payment processor
    - Look for: "Merchant ID:", "Merchant Number:", "MID:", "Merchant No:"
-   - Often near business name or in statement header
+   - Often near merchant name or in statement header
    - If not found, leave as null
 
-4. BUSINESS ADDRESS:
-   - The merchant's business address, NOT the processor's office
+4. MERCHANT ADDRESS:
+   - The merchant's operating address, NOT the processor's office
    - Often near the merchant name at top of statement
    - If not found, leave as null
 

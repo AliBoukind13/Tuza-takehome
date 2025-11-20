@@ -22,7 +22,9 @@ def test_single_extraction():
         result = extractor.extract_from_pdf(pdf_path)
         
         print(f"\nExtraction successful")
-        print(f"Business Name: {result.business_name}")
+        print(f"Payment Provider: {result.payment_provider}")
+        print(f"Merchant Name: {result.merchant_name}") 
+        print(f"Merchant ID: {result.merchant_id}") 
         print(f"Statement Date: {result.statement_date}")
         print(f"Total Transaction Types: {len(result.transaction_charges)}")
         
@@ -31,16 +33,18 @@ def test_single_extraction():
             print(f"\n{i}. {charge.charge_type_description}")
             print(f"   Scheme: {charge.charge_type.scheme}")
             print(f"   Realm: {charge.charge_type.realm}")
+            print(f"   Card Type: {charge.charge_type.cardType}")
             print(f"   Region: {charge.charge_type.region}")
             print(f"   Presence: {charge.charge_type.presence}")
             print(f"   Rate: {charge.charge_rate}")
+            print(f"   Transactions: {charge.number_of_transactions}")
             print(f"   Total: {charge.charge_total}")
             if charge.reasoning:
                 print(f"   Reasoning: {charge.reasoning}")
             if charge.charge_type.scheme == "other":
                 print(f"   Other Scheme: {charge.charge_type.scheme_other_description}")
         
-        output_path = "tests/test_output.json"
+        output_path = "tests/tests_outputs/llm_extraction_output.json"
         with open(output_path, "w") as f:
             json.dump(result.model_dump(), f, indent=2)
         print(f"\nFull output saved to: {output_path}")
@@ -48,13 +52,15 @@ def test_single_extraction():
         print("\nValidation Checks:")
         print("-" * 50)
         
-        assert result.business_name, "Missing business name"
+        assert result.payment_provider, "Missing payment provider"
+        assert result.merchant_name, "Missing merchant name"
         assert result.statement_date, "Missing statement date"
         assert len(result.transaction_charges) > 0, "No transaction charges extracted"
         
         for charge in result.transaction_charges:
             assert charge.charge_type_description, "Missing charge description"
             assert charge.charge_type.scheme, "Missing scheme"
+            assert charge.reasoning, "Missing reasoning" 
             assert charge.number_of_transactions >= 0, "Invalid transaction count"
             
             if charge.charge_type.scheme == "other":
@@ -79,6 +85,17 @@ def test_single_extraction():
             print(f"\nCalculated from rows:")
             print(f"  Total Value: £{calc_value:,.2f}")
             print(f"  Total Charges: £{calc_charges:,.2f}")
+            
+            # Check discrepancy (if possible)
+            if result.total_value:
+                extracted_value = float(result.total_value.replace('£', '').replace(',', ''))
+                discrepancy_pct = abs(calc_value - extracted_value) / extracted_value * 100
+                print(f"  Value Discrepancy: {discrepancy_pct:.1f}%")
+            
+            if result.total_charges:
+                extracted_charges = float(result.total_charges.replace('£', '').replace(',', ''))
+                discrepancy_pct = abs(calc_charges - extracted_charges) / extracted_charges * 100
+                print(f"  Charges Discrepancy: {discrepancy_pct:.1f}%")
         
         return result
         
@@ -87,49 +104,6 @@ def test_single_extraction():
         import traceback
         traceback.print_exc()
         raise
-
-def test_all_pdfs():
-    """Test extraction on all PDFs in statements folder."""
-    print("\nTesting All PDFs")
-    print("-" * 50)
-    
-    extractor = StatementExtractor(model="gpt-4-turbo-preview")
-    
-    pdf_files = [
-        "statements/DojoRedacted1.pdf",
-        "statements/DojoRedacted2.pdf",
-        "statements/DojoRedacted3.pdf",
-        "statements/DojoRedacted4.pdf",
-        "statements/DojoRedacted5.pdf",
-        "statements/DojoRedacted6.pdf",
-        "statements/LloydsRedacted1.pdf",
-        "statements/WorldpayRedacted1.pdf",
-        "statements/WorldpayRedacted2.pdf",
-    ]
-    
-    results = {}
-    for pdf_path in pdf_files:
-        print(f"\nProcessing: {pdf_path}")
-        try:
-            result = extractor.extract_from_pdf(pdf_path)
-            results[pdf_path] = {
-                "success": True,
-                "business_name": result.business_name,
-                "charges_count": len(result.transaction_charges)
-            }
-            print(f"  Success - {len(result.transaction_charges)} charges extracted")
-        except Exception as e:
-            results[pdf_path] = {
-                "success": False,
-                "error": str(e)
-            }
-            print(f"  Failed: {e}")
-    
-    print("\nSummary:")
-    successful = sum(1 for r in results.values() if r["success"])
-    print(f"Successful: {successful}/{len(pdf_files)}")
-    
-    return results
 
 if __name__ == "__main__":
     api_key = os.getenv("OPENAI_API_KEY")
