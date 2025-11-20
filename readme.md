@@ -230,7 +230,7 @@ This layout keeps the architecture simple and testable:
 - `index.html` provides a human-friendly way to run the same pipeline.
 
 
-## Extraction Schema Design choices
+## Extraction Schema Design Choices
 
 Our extraction schema (ExtractedStatement) is built using Pydantic to ensure strict type validation and structure. While based on the example JSON provided in the challenge, we introduced several architectural deviations to improve reliability, auditability, and data integrity.
 
