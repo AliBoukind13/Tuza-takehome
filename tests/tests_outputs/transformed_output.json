@@ -1,0 +1,225 @@
+{
+  "merchantStatementUploadId": "TEST-123",
+  "merchantName": "Unknown",
+  "merchantId": "202010117132188",
+  "paymentProvider": "Dojo",
+  "statementDate": "2023-11-25",
+  "statementPeriod": "25 Oct to 24 Nov 2023",
+  "monthlyRevenue": {
+    "___type": "Currency",
+    "#constructedType": "pounds",
+    "#decimal": "11389.62"
+  },
+  "monthlyCharges": {
+    "___type": "Currency",
+    "#constructedType": "pounds",
+    "#decimal": "198.99"
+  },
+  "averageTransactionAmount": {
+    "___type": "Currency",
+    "#constructedType": "pounds",
+    "#decimal": "14.72"
+  },
+  "breakdown": {
+    "mastercardInPersonUkConsumerDebit": {
+      "percentageSplit": {
+        "___type": "Percentage",
+        "#decimal": "0.44750483"
+      },
+      "fees": {
+        "fixed": {
+          "___type": "Currency",
+          "#constructedType": "pounds",
+          "#decimal": "0.03"
+        },
+        "percentage": {
+          "___type": "Percentage",
+          "#decimal": "0.0153"
+        }
+      }
+    },
+    "visaInPersonUkConsumerDebit": {
+      "percentageSplit": {
+        "___type": "Percentage",
+        "#decimal": "0.39454521"
+      },
+      "fees": {
+        "fixed": {
+          "___type": "Currency",
+          "#constructedType": "pounds",
+          "#decimal": "0.03"
+        },
+        "percentage": {
+          "___type": "Percentage",
+          "#decimal": "0.0153"
+        }
+      }
+    },
+    "mastercardInPersonUkConsumerCredit": {
+      "percentageSplit": {
+        "___type": "Percentage",
+        "#decimal": "0.06664840"
+      },
+      "fees": {
+        "fixed": {
+          "___type": "Currency",
+          "#constructedType": "pounds",
+          "#decimal": "0"
+        },
+        "percentage": {
+          "___type": "Percentage",
+          "#decimal": "0.0153"
+        }
+      }
+    },
+    "amexInPersonUkConsumerCredit": {
+      "percentageSplit": {
+        "___type": "Percentage",
+        "#decimal": "0.03136891"
+      },
+      "fees": {
+        "fixed": {
+          "___type": "Currency",
+          "#constructedType": "pounds",
+          "#decimal": "0"
+        },
+        "percentage": {
+          "___type": "Percentage",
+          "#decimal": "0.019"
+        }
+      }
+    },
+    "visaInPersonUkConsumerCredit": {
+      "percentageSplit": {
+        "___type": "Percentage",
+        "#decimal": "0.02551973"
+      },
+      "fees": {
+        "fixed": {
+          "___type": "Currency",
+          "#constructedType": "pounds",
+          "#decimal": "0"
+        },
+        "percentage": {
+          "___type": "Percentage",
+          "#decimal": "0.0153"
+        }
+      }
+    },
+    "mastercardInPersonInternationalConsumerDebit": {
+      "percentageSplit": {
+        "___type": "Percentage",
+        "#decimal": "0.01162462"
+      },
+      "fees": {
+        "fixed": {
+          "___type": "Currency",
+          "#constructedType": "pounds",
+          "#decimal": "0.03"
+        },
+        "percentage": {
+          "___type": "Percentage",
+          "#decimal": "0.0203"
+        }
+      }
+    },
+    "mastercardInPersonUkCommercialCredit": {
+      "percentageSplit": {
+        "___type": "Percentage",
+        "#decimal": "0.01410056"
+      },
+      "fees": {
+        "fixed": {
+          "___type": "Currency",
+          "#constructedType": "pounds",
+          "#decimal": "0"
+        },
+        "percentage": {
+          "___type": "Percentage",
+          "#decimal": "0.0222"
+        }
+      }
+    },
+    "mastercardInPersonInternationalConsumerCredit": {
+      "percentageSplit": {
+        "___type": "Percentage",
+        "#decimal": "0.00283153"
+      },
+      "fees": {
+        "fixed": {
+          "___type": "Currency",
+          "#constructedType": "pounds",
+          "#decimal": "0.13"
+        },
+        "percentage": {
+          "___type": "Percentage",
+          "#decimal": "0.0248"
+        }
+      }
+    },
+    "visaInPersonUkCommercialDebit": {
+      "percentageSplit": {
+        "___type": "Percentage",
+        "#decimal": "0.00297200"
+      },
+      "fees": {
+        "fixed": {
+          "___type": "Currency",
+          "#constructedType": "pounds",
+          "#decimal": "0.03"
+        },
+        "percentage": {
+          "___type": "Percentage",
+          "#decimal": "0.0222"
+        }
+      }
+    },
+    "visaInPersonInternationalConsumerDebit": {
+      "percentageSplit": {
+        "___type": "Percentage",
+        "#decimal": "0.00192280"
+      },
+      "fees": {
+        "fixed": {
+          "___type": "Currency",
+          "#constructedType": "pounds",
+          "#decimal": "0.03"
+        },
+        "percentage": {
+          "___type": "Percentage",
+          "#decimal": "0.0203"
+        }
+      }
+    },
+    "mastercardInPersonEeaConsumerDebit": {
+      "percentageSplit": {
+        "___type": "Percentage",
+        "#decimal": "0.00096140"
+      },
+      "fees": {
+        "fixed": {
+          "___type": "Currency",
+          "#constructedType": "pounds",
+          "#decimal": "0.03"
+        },
+        "percentage": {
+          "___type": "Percentage",
+          "#decimal": "0.0158"
+        }
+      }
+    }
+  },
+  "authorisationFee": null,
+  "registeredCompany": null,
+  "merchantCategoryCode": null,
+  "extractionMetadata": {
+    "totalTransactionRows": 12,
+    "uniqueBuckets": 11,
+    "errors": [],
+    "warnings": [],
+    "extractedTotals": {
+      "value": "\u00a311,389.62",
+      "charges": "\u00a3198.99"
+    }
+  }
+}

@@ -1,6 +1,5 @@
-# transformer.py
-from typing import Dict, List, Optional, Tuple
-from decimal import Decimal, ROUND_HALF_UP
+from typing import Dict, List, Optional, Tuple, Any
+from decimal import Decimal, ROUND_HALF_EVEN
 from schemas.extraction_schema import ExtractedStatement, TransactionCharge
 from schemas.output_schema import (
     NewMerchantStatement, MoneyType, PercentageType, 
@@ -14,7 +13,6 @@ logger = logging.getLogger(__name__)
 class StatementTransformer:
     """
     Transforms extracted statement data into NewMerchantStatement format.
-    Handles all the complex calculation logic and edge cases.
     """
     
     def __init__(self):
@@ -37,25 +35,23 @@ class StatementTransformer:
             NewMerchantStatement with all calculations
         """
         logger.info(f"Starting transformation for {extracted.merchant_name}")
-        
+
         # Reset error tracking
         self.errors = []
         self.warnings = []
         
-        # Calculate aggregates
-        monthly_revenue = self._calculate_total_revenue(extracted.transaction_charges)
-        monthly_charges = self._calculate_total_charges(extracted.transaction_charges)
+        monthly_revenue = self._calculate_monthly_revenue(extracted.transaction_charges)
+        monthly_charges = self._calculate_monthly_charges(extracted.transaction_charges)
         avg_transaction = self._calculate_average_transaction(extracted.transaction_charges)
         
-        # Create breakdown buckets
-        breakdown = self._create_breakdown(extracted.transaction_charges, monthly_revenue)
+
+        breakdown, bucket_count = self._create_breakdown(extracted.transaction_charges, monthly_revenue)
         
-        # Parse auth fee if present
+
         auth_fee = None
         if extracted.authorisation_fee:
             auth_fee = self._parse_money_to_type(extracted.authorisation_fee)
         
-        # Build the output
         result = NewMerchantStatement(
             merchantStatementUploadId=upload_id,
             merchantName=extracted.merchant_name,
@@ -71,7 +67,8 @@ class StatementTransformer:
             registeredCompany=extracted.registered_company,
             merchantCategoryCode=extracted.merchant_category_code,
             extractionMetadata={
-                "totalTransactionTypes": len(extracted.transaction_charges),
+                "totalTransactionRows": len(extracted.transaction_charges),  # Original rows
+                "uniqueBuckets": bucket_count,  # After aggregation (because note: some rows may end up in the same bucket, more info in  _create_breakdown())
                 "errors": self.errors,
                 "warnings": self.warnings,
                 "extractedTotals": {
@@ -81,24 +78,24 @@ class StatementTransformer:
             }
         )
         
-        logger.info(f"Transformation complete with {len(breakdown)} breakdown buckets")
+        logger.info(f"Transformation complete: {len(extracted.transaction_charges)} rows -> {bucket_count} unique buckets")
         return result
     
-    def _calculate_total_revenue(self, charges: List[TransactionCharge]) -> Decimal:
+    def _calculate_monthly_revenue(self, charges: List[TransactionCharge]) -> Decimal:
         """Calculate total transaction value across all charges"""
         total = Decimal(0)
         for charge in charges:
             value = self._parse_money(charge.transactions_value)
             total += value
-        return total.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        return total.quantize(Decimal('0.01'), rounding=ROUND_HALF_EVEN)
     
-    def _calculate_total_charges(self, charges: List[TransactionCharge]) -> Decimal:
+    def _calculate_monthly_charges(self, charges: List[TransactionCharge]) -> Decimal:
         """Calculate total fees charged"""
         total = Decimal(0)
         for charge in charges:
             value = self._parse_money(charge.charge_total)
             total += value
-        return total.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        return total.quantize(Decimal('0.01'), rounding=ROUND_HALF_EVEN)
     
     def _calculate_average_transaction(self, charges: List[TransactionCharge]) -> Decimal:
         """Calculate average transaction amount"""
@@ -115,36 +112,73 @@ class StatementTransformer:
             return Decimal(0)
         
         avg = total_value / total_count
-        return avg.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        return avg.quantize(Decimal('0.01'), rounding=ROUND_HALF_EVEN)
     
     def _create_breakdown(
         self, 
         charges: List[TransactionCharge],
         total_revenue: Decimal
-    ) -> Dict[str, BreakdownItem]:
+    ) -> Tuple[Dict[str, BreakdownItem], int]:
         """
         Create breakdown buckets with percentage splits and fee structures.
+        IMPORTANT: Aggregates duplicate buckets when different descriptions map to the same key.
+        
+        Example aggregation from our data:
+        - "Mastercard Business" (£98.55, 2.22% rate)
+        - "Mastercard Corporate and Purchasing" (£62.05, 2.22% rate)
+        Both map to -> "mastercardInPersonUkCommercialCredit"
+        Combined value: £160.60 (1.41% of total)
+        
+        Returns:
+            Tuple of (breakdown dict, count of unique buckets)
+            e.g., (12 transaction rows -> 11 unique buckets)
         """
-        breakdown = {}
+        # First pass: aggregate by bucket key
+        bucket_aggregates = {}
         
         for charge in charges:
-            # Generate bucket key
             bucket_key = self._generate_bucket_key(charge)
             
-            # Calculate percentage of total
+            if bucket_key not in bucket_aggregates:
+                bucket_aggregates[bucket_key] = {
+                    'total_value': Decimal(0),
+                    'total_charges': Decimal(0),
+                    'transaction_count': 0,
+                    'charges': [],
+                    'rate': charge.charge_rate  # Keep first rate (should be same for duplicates)
+                }
+            else:
+                # Log when we're merging buckets
+                logger.info(f"Merging duplicate bucket: {bucket_key} - {charge.charge_type_description}")
+                if charge.charge_rate != bucket_aggregates[bucket_key]['rate']:
+                    self.warnings.append(
+                        f"Different rates for same bucket {bucket_key}: "
+                        f"{charge.charge_rate} vs {bucket_aggregates[bucket_key]['rate']}"
+                    )
+            
+            # Aggregate values
             charge_value = self._parse_money(charge.transactions_value)
+            charge_total = self._parse_money(charge.charge_total)
+            
+            bucket_aggregates[bucket_key]['total_value'] += charge_value
+            bucket_aggregates[bucket_key]['total_charges'] += charge_total
+            bucket_aggregates[bucket_key]['transaction_count'] += charge.number_of_transactions
+            bucket_aggregates[bucket_key]['charges'].append(charge)
+        
+        # Second pass: create breakdown items
+        breakdown = {}
+        
+        for bucket_key, aggregate in bucket_aggregates.items():
             percentage_split = Decimal(0)
             if total_revenue > 0:
-                percentage_split = (charge_value / total_revenue)
-                # Keep more precision for percentages
+                percentage_split = (aggregate['total_value'] / total_revenue)
                 percentage_split = percentage_split.quantize(
-                    Decimal('0.00000001'), rounding=ROUND_HALF_UP
+                    Decimal('0.00000001'), rounding=ROUND_HALF_EVEN
                 )
             
-            # Parse fee structure from charge_rate
-            percentage_fee, fixed_fee = self._parse_rate_structure(charge.charge_rate)
+            # Parse fee structure (use the first rate, they should be identical for same bucket)
+            percentage_fee, fixed_fee = self._parse_rate_structure(aggregate['rate'])
             
-            # Create breakdown item
             breakdown[bucket_key] = BreakdownItem(
                 percentageSplit=PercentageType.from_decimal(percentage_split),
                 fees=FeeStructure(
@@ -153,13 +187,21 @@ class StatementTransformer:
                 )
             )
             
+            # Log aggregated buckets
+            if len(aggregate['charges']) > 1:
+                descriptions = [c.charge_type_description for c in aggregate['charges']]
+                logger.info(
+                    f"Bucket {bucket_key}: aggregated {len(aggregate['charges'])} rows: {descriptions}"
+                )
+            
             logger.debug(f"Created bucket: {bucket_key} with {percentage_split:.4%} split")
         
-        return breakdown
+        return breakdown, len(breakdown)
     
     def _generate_bucket_key(self, charge: TransactionCharge) -> str:
         """
         Generate the bucket key from charge type.
+        Pattern: [scheme][Presence][Region][Realm][CardType]
         Example: visaInPersonUkConsumerDebit
         """
         ct = charge.charge_type
@@ -249,36 +291,102 @@ class StatementTransformer:
         return MoneyType.from_decimal(amount) if amount > 0 else None
 
 
-# Test function to verify transformer works
 def test_transformer():
     """Test the transformer with sample data"""
     import json
-    from schemas.extraction_schema import ExtractedStatement
-    
+    from schemas.extraction_schema import (
+        ExtractedStatement,
+        TransactionCharge,
+        MerchantAddress,
+        CanonicalChargeType,
+        Scheme,
+        Realm,
+        CardType,
+        Presence,
+        Region,
+    )
+
     # Load the extracted data from your test
     with open("tests/tests_outputs/llm_extraction_output.json", "r") as f:
         data = json.load(f)
-    
-    # Convert to Pydantic model
-    extracted = ExtractedStatement(**data)
-    
+
+    # Build TransactionCharge list
+    transaction_charges = []
+    for tc in data.get("transaction_charges", []):
+        charge_type_data = tc["charge_type"]
+
+        charge_type = CanonicalChargeType(
+            scheme=Scheme(charge_type_data["scheme"]),
+            realm=Realm(charge_type_data["realm"]),
+            cardType=CardType(charge_type_data["cardType"]),
+            presence=Presence(charge_type_data["presence"]),
+            region=Region(charge_type_data["region"]),
+            scheme_other_description=charge_type_data.get("scheme_other_description"),
+        )
+
+        charge = TransactionCharge(
+            reasoning=tc["reasoning"],
+            chargeTypeDescription=tc["charge_type_description"],
+            chargeType=charge_type,
+            chargeRate=tc["charge_rate"],
+            numberOfTransactions=tc["number_of_transactions"],
+            chargeTotal=tc["charge_total"],
+            transactionsValue=tc["transactions_value"],
+        )
+        transaction_charges.append(charge)
+
+    # Optional merchant address
+    merchant_address = None
+    if data.get("merchant_address"):
+        addr_data = data["merchant_address"]
+        merchant_address = MerchantAddress(
+            line1=addr_data.get("line1"),
+            line2=addr_data.get("line2"),
+            line3=addr_data.get("line3"),
+            city=addr_data.get("city"),
+            postcode=addr_data.get("postcode"),
+            country=addr_data.get("country"),
+        )
+
+    # Build ExtractedStatement
+    extracted = ExtractedStatement(
+        paymentProvider=data["payment_provider"],
+        merchantName=data["merchant_name"],
+        merchantAddress=merchant_address,
+        merchantId=data.get("merchant_id"),
+        statementDate=data["statement_date"],
+        statementPeriod=data.get("statement_period"),
+        authorisationFee=data.get("authorisation_fee"),
+        registeredCompany=data.get("registered_company"),
+        merchantCategoryCode=data.get("merchant_category_code"),
+        transactionCharges=transaction_charges,
+        totalValue=data.get("total_value"),
+        totalCharges=data.get("total_charges"),
+    )
+
     # Transform
     transformer = StatementTransformer()
     result = transformer.transform(extracted, upload_id="TEST-123")
-    
-    # Output the result
+
+    # Output the result with aliases
     output = result.model_dump(by_alias=True)
-    
+
     print(json.dumps(output, indent=2))
-    
+
     # Save to file
     with open("tests/tests_outputs/transformed_output.json", "w") as f:
         json.dump(output, f, indent=2)
-    
-    print(f"\nTransformed {len(result.breakdown)} transaction types")
-    print(f"Monthly Revenue: {result.monthlyRevenue.decimal}")
-    print(f"Monthly Charges: {result.monthlyCharges.decimal}")
-    print(f"Average Transaction: {result.averageTransactionAmount.decimal}")
+
+    # Print summary with corrected counts
+    print(f"\nTransformed {len(extracted.transaction_charges)} transaction rows into {len(result.breakdown)} unique buckets")
+    print(f"Monthly Revenue: £{result.monthlyRevenue.decimal}")
+    print(f"Monthly Charges: £{result.monthlyCharges.decimal}")
+    print(f"Average Transaction: £{result.averageTransactionAmount.decimal}")
+
+    print("\nBreakdown buckets:")
+    for key, item in result.breakdown.items():
+        percentage = float(item.percentageSplit.decimal) * 100
+        print(f"  {key}: {percentage:.2f}%")
 
 
 if __name__ == "__main__":

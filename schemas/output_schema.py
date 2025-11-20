@@ -1,55 +1,75 @@
-# schemas/output_schema.py
-from pydantic import BaseModel, Field
-from typing import Dict, Optional
+from datetime import date
 from decimal import Decimal
+from typing import Dict, Optional, Any
+
+from pydantic import BaseModel, Field, ConfigDict
+
 
 class MoneyType(BaseModel):
-    """Represents money in the specific format required"""
-    type_field: str = Field(alias="___type", default="Currency")
-    constructed_type: str = Field(alias="#constructedType", default="pounds")
-    decimal_value: str = Field(alias="#decimal")
-    
+    """Represents money in the specific format required."""
+    # Allow using field names (decimal=...) as well as aliases ("#decimal")
+    model_config = ConfigDict(populate_by_name=True)
+
+    type_: str = Field("Currency", alias="___type")
+    constructedType: str = Field("pounds", alias="#constructedType")
+    decimal: str = Field(alias="#decimal")
+
     @classmethod
-    def from_decimal(cls, amount: Decimal):
-        return cls(decimal_value=str(amount))
+    def from_decimal(cls, amount: Decimal) -> "MoneyType":
+        # Because populate_by_name=True, this works: decimal=...
+        return cls(decimal=str(amount))
+
 
 class PercentageType(BaseModel):
-    """Represents percentage in the specific format required"""
-    type_field: str = Field(alias="___type", default="Percentage")
-    decimal_value: str = Field(alias="#decimal")
-    
+    """Represents a percentage in the specific format required."""
+    # Same trick here
+    model_config = ConfigDict(populate_by_name=True)
+
+    type_: str = Field("Percentage", alias="___type")
+    decimal: str = Field(alias="#decimal")
+
     @classmethod
-    def from_decimal(cls, amount: Decimal):
-        return cls(decimal_value=str(amount))
+    def from_decimal(cls, amount: Decimal) -> "PercentageType":
+        return cls(decimal=str(amount))
+
 
 class FeeStructure(BaseModel):
-    """Fee structure with fixed and percentage components"""
+    """Fee structure with fixed and percentage components."""
     fixed: MoneyType
     percentage: PercentageType
 
+
 class BreakdownItem(BaseModel):
-    """Individual breakdown bucket"""
+    """Individual breakdown bucket (e.g. visa / consumer / debit / inPerson / uk)."""
     percentageSplit: PercentageType
     fees: FeeStructure
 
+
 class NewMerchantStatement(BaseModel):
-    """Output format for the transformed statement"""
+    """Output format for the transformed merchant statement."""
     merchantStatementUploadId: str
     merchantName: str
     merchantId: Optional[str]
     paymentProvider: str
-    statementDate: str
+
+    statementDate: str  # or `date` if you prefer
     statementPeriod: Optional[str]
-    
+
     monthlyRevenue: MoneyType
     monthlyCharges: MoneyType
     averageTransactionAmount: MoneyType
-    
-    breakdown: Dict[str, BreakdownItem]
-    
+
+    breakdown: Dict[str, BreakdownItem] = Field(
+        description=(
+            "Mapping from canonical bucket key "
+            "(e.g. 'visa.consumer.debit.inPerson.uk') "
+            "to its split and fee structure."
+        )
+    )
+
     authorisationFee: Optional[MoneyType]
     registeredCompany: Optional[bool]
     merchantCategoryCode: Optional[str]
-    
-    # Metadata for tracking
-    extractionMetadata: Optional[Dict] = Field(default_factory=dict)
+
+    # Metadata for tracking / debugging extraction and transformation
+    extractionMetadata: Dict[str, Any] = Field(default_factory=dict)
