@@ -1,7 +1,7 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
-from langchain.output_parsers import PydanticOutputParser
-from schemas import ExtractedStatement, Scheme, Realm, CardType, Presence, Region
+from langchain_core.output_parsers import PydanticOutputParser
+from schemas.extraction_schema import ExtractedStatement, Scheme, Realm, CardType, Presence, Region
 from typing import Optional, Dict, Any
 import os
 from dotenv import load_dotenv
@@ -35,7 +35,7 @@ class StatementExtractor:
         "discover": Scheme.DISCOVER,
         "jcb": Scheme.JCB,
         "japanese credit bureau": Scheme.JCB,
-        # V Pay is actually Visa
+        # ASSUMPTION: V Pay is actually Visa (it is a visa product)
         "v pay": Scheme.VISA,
         "vpay": Scheme.VISA,
     }

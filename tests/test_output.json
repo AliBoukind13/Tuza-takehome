@@ -1,0 +1,205 @@
+{
+  "business_name": "Unknown",
+  "business_address": null,
+  "statement_date": "2023-11-25",
+  "authorisation_fee": null,
+  "registered_company": false,
+  "merchant_category_code": null,
+  "transaction_charges": [
+    {
+      "reasoning": "\u2018Mastercard Debit\u2019 implies consumer debit; no region specified -> UK; default presence -> inPerson.",
+      "charge_type_description": "Mastercard Debit (inc. prepaid)",
+      "charge_type": {
+        "scheme": "mastercard",
+        "realm": "consumer",
+        "cardType": "debit",
+        "presence": "inPerson",
+        "region": "uk",
+        "scheme_other_description": null
+      },
+      "charge_rate": "1.53% + \u00a30.03",
+      "number_of_transactions": 342,
+      "charge_total": "\u00a388.24",
+      "transactions_value": "\u00a35,096.91"
+    },
+    {
+      "reasoning": "\u2018Visa Debit\u2019 implies consumer debit; no region specified -> UK; default presence -> inPerson.",
+      "charge_type_description": "Visa Debit (inc. prepaid)",
+      "charge_type": {
+        "scheme": "visa",
+        "realm": "consumer",
+        "cardType": "debit",
+        "presence": "inPerson",
+        "region": "uk",
+        "scheme_other_description": null
+      },
+      "charge_rate": "1.53% + \u00a30.03",
+      "number_of_transactions": 339,
+      "charge_total": "\u00a378.92",
+      "transactions_value": "\u00a34,493.72"
+    },
+    {
+      "reasoning": "\u2018Mastercard Credit\u2019 -> credit; no business label -> consumer; no region -> UK; default presence -> inPerson.",
+      "charge_type_description": "Mastercard Credit",
+      "charge_type": {
+        "scheme": "mastercard",
+        "realm": "consumer",
+        "cardType": "credit",
+        "presence": "inPerson",
+        "region": "uk",
+        "scheme_other_description": null
+      },
+      "charge_rate": "1.53%",
+      "number_of_transactions": 46,
+      "charge_total": "\u00a311.61",
+      "transactions_value": "\u00a3759.10"
+    },
+    {
+      "reasoning": "American Express mapped to amex; treated as credit; no region -> UK; default presence -> inPerson.",
+      "charge_type_description": "American Express",
+      "charge_type": {
+        "scheme": "amex",
+        "realm": "consumer",
+        "cardType": "credit",
+        "presence": "inPerson",
+        "region": "uk",
+        "scheme_other_description": null
+      },
+      "charge_rate": "1.9%",
+      "number_of_transactions": 16,
+      "charge_total": "\u00a36.79",
+      "transactions_value": "\u00a3357.28"
+    },
+    {
+      "reasoning": "\u2018Visa Credit\u2019 -> credit; no business label -> consumer; no region -> UK; default presence -> inPerson.",
+      "charge_type_description": "Visa Credit",
+      "charge_type": {
+        "scheme": "visa",
+        "realm": "consumer",
+        "cardType": "credit",
+        "presence": "inPerson",
+        "region": "uk",
+        "scheme_other_description": null
+      },
+      "charge_rate": "1.53%",
+      "number_of_transactions": 12,
+      "charge_total": "\u00a34.45",
+      "transactions_value": "\u00a3290.66"
+    },
+    {
+      "reasoning": "\u2018Non-qualifying\u2019 maps to International; debit specified; default presence -> inPerson; consumer by default.",
+      "charge_type_description": "Mastercard Debit (inc. prepaid), Non-qualifying",
+      "charge_type": {
+        "scheme": "mastercard",
+        "realm": "consumer",
+        "cardType": "debit",
+        "presence": "inPerson",
+        "region": "international",
+        "scheme_other_description": null
+      },
+      "charge_rate": "2.03% + \u00a30.03",
+      "number_of_transactions": 6,
+      "charge_total": "\u00a32.87",
+      "transactions_value": "\u00a3132.40"
+    },
+    {
+      "reasoning": "\u2018Business\u2019 -> commercial; card type not specified so treated as credit; no region -> UK; default presence -> inPerson.",
+      "charge_type_description": "Mastercard Business",
+      "charge_type": {
+        "scheme": "mastercard",
+        "realm": "commercial",
+        "cardType": "credit",
+        "presence": "inPerson",
+        "region": "uk",
+        "scheme_other_description": null
+      },
+      "charge_rate": "2.22%",
+      "number_of_transactions": 5,
+      "charge_total": "\u00a32.19",
+      "transactions_value": "\u00a398.55"
+    },
+    {
+      "reasoning": "\u2018Corporate and Purchasing\u2019 -> commercial; treated as credit; no region -> UK; default presence -> inPerson.",
+      "charge_type_description": "Mastercard Corporate and Purchasing",
+      "charge_type": {
+        "scheme": "mastercard",
+        "realm": "commercial",
+        "cardType": "credit",
+        "presence": "inPerson",
+        "region": "uk",
+        "scheme_other_description": null
+      },
+      "charge_rate": "2.22%",
+      "number_of_transactions": 2,
+      "charge_total": "\u00a31.38",
+      "transactions_value": "\u00a362.05"
+    },
+    {
+      "reasoning": "\u2018International\u2019 maps to International; credit specified; consumer by default; default presence -> inPerson.",
+      "charge_type_description": "Mastercard Credit, International",
+      "charge_type": {
+        "scheme": "mastercard",
+        "realm": "consumer",
+        "cardType": "credit",
+        "presence": "inPerson",
+        "region": "international",
+        "scheme_other_description": null
+      },
+      "charge_rate": "2.48% + \u00a30.13",
+      "number_of_transactions": 2,
+      "charge_total": "\u00a31.06",
+      "transactions_value": "\u00a332.25"
+    },
+    {
+      "reasoning": "\u2018Business Debit\u2019 -> commercial debit; no region -> UK; default presence -> inPerson.",
+      "charge_type_description": "Visa Business Debit",
+      "charge_type": {
+        "scheme": "visa",
+        "realm": "commercial",
+        "cardType": "debit",
+        "presence": "inPerson",
+        "region": "uk",
+        "scheme_other_description": null
+      },
+      "charge_rate": "2.22% + \u00a30.03",
+      "number_of_transactions": 2,
+      "charge_total": "\u00a30.81",
+      "transactions_value": "\u00a333.85"
+    },
+    {
+      "reasoning": "\u2018Non-qualifying\u2019 maps to International; debit specified; consumer by default; default presence -> inPerson.",
+      "charge_type_description": "Visa Debit (inc. prepaid), Non-qualifying",
+      "charge_type": {
+        "scheme": "visa",
+        "realm": "consumer",
+        "cardType": "debit",
+        "presence": "inPerson",
+        "region": "international",
+        "scheme_other_description": null
+      },
+      "charge_rate": "2.03% + \u00a30.03",
+      "number_of_transactions": 1,
+      "charge_total": "\u00a30.47",
+      "transactions_value": "\u00a321.90"
+    },
+    {
+      "reasoning": "\u2018EEA\u2019 maps to EEA; debit specified; consumer by default; default presence -> inPerson.",
+      "charge_type_description": "Mastercard Debit (inc. prepaid), EEA",
+      "charge_type": {
+        "scheme": "mastercard",
+        "realm": "consumer",
+        "cardType": "debit",
+        "presence": "inPerson",
+        "region": "eea",
+        "scheme_other_description": null
+      },
+      "charge_rate": "1.58% + \u00a30.03",
+      "number_of_transactions": 1,
+      "charge_total": "\u00a30.20",
+      "transactions_value": "\u00a310.95"
+    }
+  ],
+  "statement_period": "25 Oct to 24 Nov 2023",
+  "total_value": "\u00a311,389.62",
+  "total_charges": "\u00a3256.42"
+}

@@ -160,7 +160,7 @@ class TransactionCharge(BaseModel):
     # CRITICAL FEATURE: Chain of Thought
     # Forces the LLM to explain its choice before committing to an Enum.
     # We added this to make sure we can check the model's logic and adjust if needed
-    reasoning: Optional[str] = Field(
+    reasoning: str= Field(
         None, 
         description="Brief reasoning for the classification (e.g. 'Found keyword Corporate -> Commercial')"
     )
