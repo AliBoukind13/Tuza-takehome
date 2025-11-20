@@ -1,5 +1,5 @@
 from typing import Dict, List, Optional, Tuple, Any
-from decimal import Decimal, ROUND_HALF_EVEN
+from decimal import Decimal, ROUND_HALF_UP
 from schemas.extraction_schema import ExtractedStatement, TransactionCharge
 from schemas.output_schema import (
     NewMerchantStatement, MoneyType, PercentageType, 
@@ -87,7 +87,7 @@ class StatementTransformer:
         for charge in charges:
             value = self._parse_money(charge.transactions_value)
             total += value
-        return total.quantize(Decimal('0.01'), rounding=ROUND_HALF_EVEN)
+        return total.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     
     def _calculate_monthly_charges(self, charges: List[TransactionCharge]) -> Decimal:
         """Calculate total fees charged"""
@@ -95,7 +95,7 @@ class StatementTransformer:
         for charge in charges:
             value = self._parse_money(charge.charge_total)
             total += value
-        return total.quantize(Decimal('0.01'), rounding=ROUND_HALF_EVEN)
+        return total.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     
     def _calculate_average_transaction(self, charges: List[TransactionCharge]) -> Decimal:
         """Calculate average transaction amount"""
@@ -112,7 +112,7 @@ class StatementTransformer:
             return Decimal(0)
         
         avg = total_value / total_count
-        return avg.quantize(Decimal('0.01'), rounding=ROUND_HALF_EVEN)
+        return avg.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     
     def _create_breakdown(
         self, 
@@ -145,16 +145,8 @@ class StatementTransformer:
                     'total_charges': Decimal(0),
                     'transaction_count': 0,
                     'charges': [],
-                    'rate': charge.charge_rate  # Keep first rate (should be same for duplicates)
+                    'rates': set()  # Track unique rates
                 }
-            else:
-                # Log when we're merging buckets
-                logger.info(f"Merging duplicate bucket: {bucket_key} - {charge.charge_type_description}")
-                if charge.charge_rate != bucket_aggregates[bucket_key]['rate']:
-                    self.warnings.append(
-                        f"Different rates for same bucket {bucket_key}: "
-                        f"{charge.charge_rate} vs {bucket_aggregates[bucket_key]['rate']}"
-                    )
             
             # Aggregate values
             charge_value = self._parse_money(charge.transactions_value)
@@ -164,6 +156,7 @@ class StatementTransformer:
             bucket_aggregates[bucket_key]['total_charges'] += charge_total
             bucket_aggregates[bucket_key]['transaction_count'] += charge.number_of_transactions
             bucket_aggregates[bucket_key]['charges'].append(charge)
+            bucket_aggregates[bucket_key]['rates'].add(charge.charge_rate)
         
         # Second pass: create breakdown items
         breakdown = {}
@@ -173,18 +166,30 @@ class StatementTransformer:
             if total_revenue > 0:
                 percentage_split = (aggregate['total_value'] / total_revenue)
                 percentage_split = percentage_split.quantize(
-                    Decimal('0.00000001'), rounding=ROUND_HALF_EVEN
+                    Decimal('0.00000001'), rounding=ROUND_HALF_UP
                 )
             
-            # Parse fee structure (use the first rate, they should be identical for same bucket)
-            percentage_fee, fixed_fee = self._parse_rate_structure(aggregate['rate'])
+            # Create a FeeStructure for each unique rate
+            fee_structures = []
+            for rate_str in sorted(aggregate['rates']):  # Sort for consistent output
+                percentage_fee, fixed_fee = self._parse_rate_structure(rate_str)
+                fee_structures.append(
+                    FeeStructure(
+                        fixed=MoneyType.from_decimal(fixed_fee),
+                        percentage=PercentageType.from_decimal(percentage_fee)
+                    )
+                )
+            
+            # Log if we found multiple rates
+            if len(aggregate['rates']) > 1:
+                logger.info(
+                    f"Bucket {bucket_key} has {len(aggregate['rates'])} different rates: "
+                    f"{sorted(aggregate['rates'])}"
+                )
             
             breakdown[bucket_key] = BreakdownItem(
                 percentageSplit=PercentageType.from_decimal(percentage_split),
-                fees=FeeStructure(
-                    fixed=MoneyType.from_decimal(fixed_fee),
-                    percentage=PercentageType.from_decimal(percentage_fee)
-                )
+                fees=fee_structures
             )
             
             # Log aggregated buckets
@@ -193,50 +198,27 @@ class StatementTransformer:
                 logger.info(
                     f"Bucket {bucket_key}: aggregated {len(aggregate['charges'])} rows: {descriptions}"
                 )
-            
-            logger.debug(f"Created bucket: {bucket_key} with {percentage_split:.4%} split")
         
         return breakdown, len(breakdown)
     
     def _generate_bucket_key(self, charge: TransactionCharge) -> str:
-        """
-        Generate the bucket key from charge type.
-        Pattern: [scheme][Presence][Region][Realm][CardType]
-        Example: visaInPersonUkConsumerDebit
-        """
+        """Generate bucket key: schemePresenceRegionRealmCardType"""
         ct = charge.charge_type
         
-        # Special handling for OTHER scheme
+        # Handle "other" scheme
         scheme = ct.scheme.value
         if scheme == "other" and ct.scheme_other_description:
-            # Use the actual scheme name if available
             scheme = ct.scheme_other_description.lower().replace(" ", "")
         
-        # Proper capitalization for each part
-        # Presence: inPerson -> InPerson, online -> Online
-        if ct.presence.value == "inPerson":
-            presence = "InPerson"
-        elif ct.presence.value == "online":
-            presence = "Online"
-        else:
-            presence = ct.presence.value.capitalize()
+        # Special case for inPerson (needs camelCase preserved)
+        presence = "InPerson" if ct.presence.value == "inPerson" else ct.presence.value.capitalize()
         
-        # Region: uk -> Uk, eea -> Eea, international -> International
-        if ct.region.value == "uk":
-            region = "Uk"
-        elif ct.region.value == "eea":
-            region = "Eea"
-        elif ct.region.value == "international":
-            region = "International"
-        else:
-            region = ct.region.value.capitalize()
-        
-        # Realm and CardType: just capitalize
-        realm = ct.realm.value.capitalize()
+        # Everything else uses capitalize() perfectly
+        region = ct.region.value.capitalize()
+        realm = ct.realm.value.capitalize() 
         card_type = ct.cardType.value.capitalize()
         
-        key = f"{scheme}{presence}{region}{realm}{card_type}"
-        return key
+        return f"{scheme}{presence}{region}{realm}{card_type}"
     
     def _parse_rate_structure(self, rate_str: str) -> Tuple[Decimal, Decimal]:
         """

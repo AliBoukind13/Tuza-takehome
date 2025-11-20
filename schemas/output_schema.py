@@ -1,6 +1,6 @@
 from datetime import date
 from decimal import Decimal
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, List
 
 from pydantic import BaseModel, Field, ConfigDict
 
@@ -44,6 +44,10 @@ class BreakdownItem(BaseModel):
     percentageSplit: PercentageType
     fees: FeeStructure
 
+class BreakdownItem(BaseModel):
+    """Individual breakdown bucket (e.g. visa / consumer / debit / inPerson / uk)."""
+    percentageSplit: PercentageType
+    fees: List[FeeStructure]  # We show all the Fee structures we may encounter for one bucket
 
 class NewMerchantStatement(BaseModel):
     """Output format for the transformed merchant statement."""
@@ -61,11 +65,10 @@ class NewMerchantStatement(BaseModel):
 
     breakdown: Dict[str, BreakdownItem] = Field(
         description=(
-            "Mapping from canonical bucket key "
-            "(e.g. 'visa.consumer.debit.inPerson.uk') "
-            "to its split and fee structure."
+                "Mapping from canonical bucket key to its split and fee structures. "
+                "Note: fees is a list as aggregated buckets may have multiple rates."
+            )
         )
-    )
 
     authorisationFee: Optional[MoneyType]
     registeredCompany: Optional[bool]
