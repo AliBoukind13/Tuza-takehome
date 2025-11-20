@@ -375,3 +375,15 @@ This architecture enables downstream services to immediately:
 ### 2. Frontend and Robustness
 
 The included frontend (`index.html`) serves as a lightweight UI wrapper for testing and internal operational workflows.
+
+## Frontend Images
+
+This section shows screenshots of the web interface (`index.html`).
+
+### Web Interface Screenshot 1
+
+![Screenshot of the primary input area for the web interface](assets/imageA.png)
+
+### Web Interface Screenshot 2
+
+![Screenshot of the JSON output and download area](assets/imageB.png)
