@@ -217,7 +217,7 @@ class StatementTransformer:
         region = ct.region.value.capitalize()
         realm = ct.realm.value.capitalize() 
         card_type = ct.cardType.value.capitalize()
-        
+
         return f"{scheme}{presence}{region}{realm}{card_type}"
     
     def _parse_rate_structure(self, rate_str: str) -> Tuple[Decimal, Decimal]:
@@ -272,104 +272,3 @@ class StatementTransformer:
         amount = self._parse_money(value)
         return MoneyType.from_decimal(amount) if amount > 0 else None
 
-
-def test_transformer():
-    """Test the transformer with sample data"""
-    import json
-    from schemas.extraction_schema import (
-        ExtractedStatement,
-        TransactionCharge,
-        MerchantAddress,
-        CanonicalChargeType,
-        Scheme,
-        Realm,
-        CardType,
-        Presence,
-        Region,
-    )
-
-    # Load the extracted data from your test
-    with open("tests/tests_outputs/llm_extraction_output.json", "r") as f:
-        data = json.load(f)
-
-    # Build TransactionCharge list
-    transaction_charges = []
-    for tc in data.get("transaction_charges", []):
-        charge_type_data = tc["charge_type"]
-
-        charge_type = CanonicalChargeType(
-            scheme=Scheme(charge_type_data["scheme"]),
-            realm=Realm(charge_type_data["realm"]),
-            cardType=CardType(charge_type_data["cardType"]),
-            presence=Presence(charge_type_data["presence"]),
-            region=Region(charge_type_data["region"]),
-            scheme_other_description=charge_type_data.get("scheme_other_description"),
-        )
-
-        charge = TransactionCharge(
-            reasoning=tc["reasoning"],
-            chargeTypeDescription=tc["charge_type_description"],
-            chargeType=charge_type,
-            chargeRate=tc["charge_rate"],
-            numberOfTransactions=tc["number_of_transactions"],
-            chargeTotal=tc["charge_total"],
-            transactionsValue=tc["transactions_value"],
-        )
-        transaction_charges.append(charge)
-
-    # Optional merchant address
-    merchant_address = None
-    if data.get("merchant_address"):
-        addr_data = data["merchant_address"]
-        merchant_address = MerchantAddress(
-            line1=addr_data.get("line1"),
-            line2=addr_data.get("line2"),
-            line3=addr_data.get("line3"),
-            city=addr_data.get("city"),
-            postcode=addr_data.get("postcode"),
-            country=addr_data.get("country"),
-        )
-
-    # Build ExtractedStatement
-    extracted = ExtractedStatement(
-        paymentProvider=data["payment_provider"],
-        merchantName=data["merchant_name"],
-        merchantAddress=merchant_address,
-        merchantId=data.get("merchant_id"),
-        statementDate=data["statement_date"],
-        statementPeriod=data.get("statement_period"),
-        authorisationFee=data.get("authorisation_fee"),
-        registeredCompany=data.get("registered_company"),
-        merchantCategoryCode=data.get("merchant_category_code"),
-        transactionCharges=transaction_charges,
-        totalValue=data.get("total_value"),
-        totalCharges=data.get("total_charges"),
-    )
-
-    # Transform
-    transformer = StatementTransformer()
-    result = transformer.transform(extracted, upload_id="TEST-123")
-
-    # Output the result with aliases
-    output = result.model_dump(by_alias=True)
-
-    print(json.dumps(output, indent=2))
-
-    # Save to file
-    with open("tests/tests_outputs/transformed_output.json", "w") as f:
-        json.dump(output, f, indent=2)
-
-    # Print summary with corrected counts
-    print(f"\nTransformed {len(extracted.transaction_charges)} transaction rows into {len(result.breakdown)} unique buckets")
-    print(f"Monthly Revenue: £{result.monthlyRevenue.decimal}")
-    print(f"Monthly Charges: £{result.monthlyCharges.decimal}")
-    print(f"Average Transaction: £{result.averageTransactionAmount.decimal}")
-
-    print("\nBreakdown buckets:")
-    for key, item in result.breakdown.items():
-        percentage = float(item.percentageSplit.decimal) * 100
-        print(f"  {key}: {percentage:.2f}%")
-
-
-if __name__ == "__main__":
-    test_transformer()

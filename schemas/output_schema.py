@@ -38,12 +38,6 @@ class FeeStructure(BaseModel):
     fixed: MoneyType
     percentage: PercentageType
 
-
-class BreakdownItem(BaseModel):
-    """Individual breakdown bucket (e.g. visa / consumer / debit / inPerson / uk)."""
-    percentageSplit: PercentageType
-    fees: FeeStructure
-
 class BreakdownItem(BaseModel):
     """Individual breakdown bucket (e.g. visa / consumer / debit / inPerson / uk)."""
     percentageSplit: PercentageType
