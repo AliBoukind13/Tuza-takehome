@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Merchant Statement Processor - Tuza</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #ff6b35 0%, #ff8c42 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            padding: 40px;
+            max-width: 900px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 32px;
+            font-weight: 700;
+        }
+        
+        .subtitle {
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            font-size: 15px;
+            font-weight: 400;
+        }
+        
+        .upload-section {
+            transition: all 0.3s ease;
+        }
+        
+        .upload-section.hidden {
+            display: none;
+        }
+        
+        .upload-area {
+            border: 2px dashed #e0e0e0;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: #fafafa;
+        }
+        
+        .upload-area:hover {
+            border-color: #ff6b35;
+            background: #fff5f2;
+        }
+        
+        .upload-area.dragover {
+            border-color: #ff6b35;
+            background: #fff5f2;
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        
+        .upload-text {
+            color: #666;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .upload-id-section {
+            margin-top: 20px;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .input-field {
+            flex: 1;
+            padding: 14px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 15px;
+            font-family: 'Inter', sans-serif;
+            transition: border-color 0.3s;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: #ff6b35;
+        }
+        
+        .btn {
+            padding: 14px 30px;
+            background: #ff6b35;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .btn:hover:not(:disabled) {
+            background: #ff5722;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .selected-file {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff5f2;
+            border-radius: 10px;
+            border: 1px solid #ffe0d6;
+            display: none;
+        }
+        
+        .selected-file.show {
+            display: block;
+        }
+        
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .file-icon {
+            font-size: 24px;
+        }
+        
+        .file-name {
+            flex: 1;
+            font-weight: 500;
+            color: #2c3e50;
+        }
+        
+        .remove-file {
+            color: #999;
+            cursor: pointer;
+            font-size: 20px;
+        }
+        
+        .remove-file:hover {
+            color: #ff4444;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 30px;
+        }
+        
+        .loading.show {
+            display: block;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #ff6b35;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .results {
+            display: none;
+            margin-top: 30px;
+        }
+        
+        .results.show {
+            display: block;
+        }
+        
+        .result-section {
+            margin-bottom: 25px;
+        }
+        
+        .result-title {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .info-item {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .info-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        
+        .info-value {
+            font-size: 20px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .breakdown-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        
+        .breakdown-table th {
+            background: #f8f9fa;
+            padding: 14px;
+            text-align: left;
+            font-weight: 600;
+            color: #7f8c8d;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+        
+        .breakdown-table td {
+            padding: 14px;
+            border-top: 1px solid #eee;
+            font-size: 14px;
+        }
+        
+        
+        .percentage-bar {
+            background: #f0f0f0;
+            height: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .percentage-fill {
+            background: linear-gradient(90deg, #ff6b35 0%, #ff8c42 100%);
+            height: 100%;
+            transition: width 0.5s ease;
+        }
+        
+        .error {
+            display: none;
+            padding: 15px;
+            background: #fee;
+            border: 1px solid #fcc;
+            border-radius: 10px;
+            color: #c00;
+            margin-top: 20px;
+        }
+        
+        .error.show {
+            display: block;
+        }
+        
+        .json-buttons {
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .json-output {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            background: #2c3e50;
+            border-radius: 10px;
+            color: #ecf0f1;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .json-output.show {
+            display: block;
+        }
+        
+        .json-title {
+            color: #ff6b35;
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        
+        pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Merchant Statement Processor</h1>
+        
+        <div class="upload-section" id="uploadSection">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📄</div>
+                <p class="upload-text">Drag and drop your PDF here or click to browse</p>
+                <input type="file" id="fileInput" class="file-input" accept=".pdf">
+            </div>
+            
+            <div class="selected-file" id="selectedFile">
+                <div class="file-info">
+                    <span class="file-icon">📎</span>
+                    <span class="file-name" id="fileName"></span>
+                    <span class="remove-file" id="removeFile">✕</span>
+                </div>
+            </div>
+            
+            <div class="upload-id-section">
+                <div class="input-group">
+                    <input type="text" id="uploadId" class="input-field" placeholder="Enter Upload ID (e.g., MERCHANT-001)">
+                    <button id="processBtn" class="btn" disabled>Process Statement</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Processing statement... This may take a moment.</p>
+        </div>
+        
+        <div class="error" id="error"></div>
+        
+        <div class="results" id="results">
+            <div class="result-section">
+                <h2 class="result-title">Summary</h2>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Merchant</div>
+                        <div class="info-value" id="merchantName">-</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Provider</div>
+                        <div class="info-value" id="provider">-</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Monthly Revenue</div>
+                        <div class="info-value" id="revenue">-</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Monthly Charges</div>
+                        <div class="info-value" id="charges">-</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Avg Transaction</div>
+                        <div class="info-value" id="avgTransaction">-</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Statement Date</div>
+                        <div class="info-value" id="statementDate">-</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="result-section">
+                <h2 class="result-title">Transaction Breakdown</h2>
+                <table class="breakdown-table">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Percentage</th>
+                            <th>Fee Structure</th>
+                        </tr>
+                    </thead>
+                    <tbody id="breakdownBody">
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="json-buttons">
+                <button class="btn" onclick="toggleMerchantJson()">NewMerchantStatement</button>
+            </div>
+            
+            <div class="json-output" id="merchantJsonOutput">
+                <div class="json-title">NEW MERCHANT STATEMENT (Transformed)</div>
+                <pre id="merchantJsonContent"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedFile = null;
+        let merchantData = null;
+        
+        // Upload area events
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const selectedFileDiv = document.getElementById('selectedFile');
+        const fileName = document.getElementById('fileName');
+        const processBtn = document.getElementById('processBtn');
+        const uploadId = document.getElementById('uploadId');
+        const uploadSection = document.getElementById('uploadSection');
+        
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type === 'application/pdf') {
+                handleFileSelect(files[0]);
+            }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+        
+        document.getElementById('removeFile').addEventListener('click', () => {
+            selectedFile = null;
+            selectedFileDiv.classList.remove('show');
+            fileInput.value = '';
+            checkCanProcess();
+        });
+        
+        uploadId.addEventListener('input', checkCanProcess);
+        
+        function handleFileSelect(file) {
+            if (file.type !== 'application/pdf') {
+                showError('Please select a PDF file');
+                return;
+            }
+            
+            selectedFile = file;
+            fileName.textContent = file.name;
+            selectedFileDiv.classList.add('show');
+            checkCanProcess();
+        }
+        
+        function checkCanProcess() {
+            processBtn.disabled = !selectedFile || !uploadId.value.trim();
+        }
+        
+        processBtn.addEventListener('click', async () => {
+            if (!selectedFile || !uploadId.value.trim()) return;
+            
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            formData.append('merchantStatementUploadId', uploadId.value.trim());
+            
+            // Hide upload section after clicking process
+            uploadSection.classList.add('hidden');
+            
+            // Hide previous results/errors
+            document.getElementById('results').classList.remove('show');
+            document.getElementById('error').classList.remove('show');
+            document.getElementById('loading').classList.add('show');
+            
+            try {
+                const response = await fetch('http://localhost:8000/extract', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Processing failed');
+                }
+                
+                merchantData = data;
+                displayResults(data);
+            } catch (error) {
+                showError(error.message || 'Failed to process statement');
+                // Show upload section again on error
+                uploadSection.classList.remove('hidden');
+            } finally {
+                document.getElementById('loading').classList.remove('show');
+            }
+        });
+        
+        function displayResults(data) {
+            // Update summary
+            document.getElementById('merchantName').textContent = data.merchantName || '-';
+            document.getElementById('provider').textContent = data.paymentProvider || '-';
+            document.getElementById('revenue').textContent = '£' + (data.monthlyRevenue?.['#decimal'] || '0');
+            document.getElementById('charges').textContent = '£' + (data.monthlyCharges?.['#decimal'] || '0');
+            document.getElementById('avgTransaction').textContent = '£' + (data.averageTransactionAmount?.['#decimal'] || '0');
+            document.getElementById('statementDate').textContent = data.statementDate || '-';
+            
+            // Update breakdown table
+            const tbody = document.getElementById('breakdownBody');
+            tbody.innerHTML = '';
+            
+            let totalPercentage = 0;
+            
+            for (const [key, item] of Object.entries(data.breakdown || {})) {
+                const percentage = parseFloat(item.percentageSplit?.['#decimal'] || 0) * 100;
+                totalPercentage += percentage;
+                
+                const row = tbody.insertRow();
+                
+                // Bucket key
+                const keyCell = row.insertCell();
+                keyCell.innerHTML = key;
+                
+                // Percentage with visual bar
+                const percentCell = row.insertCell();
+                percentCell.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 60px; text-align: right;">${percentage.toFixed(2)}%</div>
+                        <div class="percentage-bar" style="flex: 1; max-width: 200px;">
+                            <div class="percentage-fill" style="width: ${percentage}%"></div>
+                        </div>
+                    </div>
+                `;
+                
+                // Fee structure
+                const feeCell = row.insertCell();
+                const fees = item.fees || [];
+                const feeText = fees.map(fee => {
+                    const fixed = parseFloat(fee.fixed?.['#decimal'] || 0);
+                    const percent = parseFloat(fee.percentage?.['#decimal'] || 0) * 100;
+                    
+                    if (fixed > 0 && percent > 0) {
+                        return `${percent.toFixed(2)}% + £${fixed.toFixed(2)}`;
+                    } else if (percent > 0) {
+                        return `${percent.toFixed(2)}%`;
+                    } else if (fixed > 0) {
+                        return `£${fixed.toFixed(2)}`;
+                    }
+                    return '-';
+                }).join(', ');
+                feeCell.textContent = feeText || '-';
+            }
+            
+            // Add total row
+            const totalRow = tbody.insertRow();
+            totalRow.style.fontWeight = 'bold';
+            totalRow.style.background = '#f8f9fa';
+            totalRow.insertCell().innerHTML = '<strong>TOTAL</strong>';
+            totalRow.insertCell().innerHTML = `<strong>${totalPercentage.toFixed(2)}%</strong>`;
+            totalRow.insertCell().textContent = '';
+            
+            // Store JSON for viewing
+            document.getElementById('merchantJsonContent').textContent = JSON.stringify(merchantData, null, 2);
+            
+            // Show results
+            document.getElementById('results').classList.add('show');
+        }
+        
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = `Error: ${message}`;
+            errorDiv.classList.add('show');
+        }
+        
+        function toggleMerchantJson() {
+            document.getElementById('merchantJsonOutput').classList.toggle('show');
+        }
+    </script>
+</body>
+</html>

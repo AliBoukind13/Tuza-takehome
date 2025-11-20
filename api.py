@@ -3,13 +3,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import tempfile
 import os
-import traceback
+import logging
 from extract_llm import extract_statement
 from transformer import StatementTransformer
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title="Merchant Statement Processor")
 
-# Enable CORS for frontend
+# Enable CORS for frontend (future work for now)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # TO DO: specify frontend URL
@@ -24,7 +27,7 @@ async def extract_statement_endpoint(
     merchantStatementUploadId: str = Form(..., description="Unique upload ID")
 ):
     """
-    Extract and transform a merchant statement PDF.
+    Extract info and transform a merchant statement PDF into a NewMerchantStatement output
     
     Endpoint: POST /extract
     
@@ -47,10 +50,10 @@ async def extract_statement_endpoint(
         tmp_path = tmp.name
     
     try:
-        print(f"Extracting from {file.filename}")
+        logger.info(f"Extracting from {file.filename}")
         extracted = extract_statement(tmp_path,"gpt-5")
 
-        print(f"Transforming for upload ID: {merchantStatementUploadId}")
+        logger.info(f"Transforming for upload ID: {merchantStatementUploadId}")
         transformer = StatementTransformer()
         result = transformer.transform(extracted, upload_id=merchantStatementUploadId)
         
@@ -60,8 +63,8 @@ async def extract_statement_endpoint(
         )
         
     except Exception as e:
-        print(f"Error processing: {str(e)}")
-        traceback.print_exc()
+        logger.error(f"Error processing: {str(e)}")
+        logger.exception("Full traceback:")
         raise HTTPException(
             status_code=500, 
             detail=f"Error processing statement: {str(e)}"
