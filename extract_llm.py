@@ -1,8 +1,7 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import PydanticOutputParser
-from schemas.extraction_schema import ExtractedStatement, Scheme, Realm, CardType, Presence, Region
-from typing import Optional, Dict, Any
+from schemas.extraction_schema import ExtractedStatement, Scheme
+from typing import Optional
 import os
 from dotenv import load_dotenv
 import PyPDF2
@@ -18,95 +17,15 @@ logger = logging.getLogger(__name__)
 class StatementExtractor:
     """
     Production-ready statement extractor using OpenAI GPT-4.
-    Handles all mappings from various PDF formats to our canonical schema.
+    Extracts transaction data from PDF statements into canonical format.
     """
-    
-    # Complete mapping dictionaries for reference
-    SCHEME_MAPPINGS = {
-        "visa": Scheme.VISA,
-        "mastercard": Scheme.MASTERCARD,
-        "master card": Scheme.MASTERCARD,
-        "mc": Scheme.MASTERCARD,
-        "american express": Scheme.AMEX,
-        "amex": Scheme.AMEX,
-        "maestro": Scheme.MAESTRO,
-        "diners": Scheme.DINERS,
-        "diners club": Scheme.DINERS,
-        "discover": Scheme.DISCOVER,
-        "jcb": Scheme.JCB,
-        "japanese credit bureau": Scheme.JCB,
-        # ASSUMPTION: V Pay is actually Visa (it is a visa product)
-        "v pay": Scheme.VISA,
-        "vpay": Scheme.VISA,
-    }
-    
-    REALM_MAPPINGS = {
-        # Consumer mappings
-        "personal": Realm.CONSUMER,
-        "private": Realm.CONSUMER,
-        "consumer": Realm.CONSUMER,
-        "": Realm.CONSUMER,  # Default/blank
-        # Commercial mappings
-        "business": Realm.COMMERCIAL,
-        "corporate": Realm.COMMERCIAL,
-        "purchasing": Realm.COMMERCIAL,
-        "fleet": Realm.COMMERCIAL,
-        "commercial": Realm.COMMERCIAL,
-    }
-    
-    REGION_MAPPINGS = {
-        # UK/Domestic
-        "": Region.UK,  # Default/blank
-        "uk": Region.UK,
-        "gb": Region.UK,
-        "domestic": Region.UK,
-        "united kingdom": Region.UK,
-        # EEA
-        "eea": Region.EEA,
-        "eu": Region.EEA,
-        "europe": Region.EEA,
-        "european": Region.EEA,
-        # International
-        "international": Region.INTERNATIONAL,
-        "intl": Region.INTERNATIONAL,
-        "non-qualifying": Region.INTERNATIONAL,
-        "non qualifying": Region.INTERNATIONAL,
-        "non-eea": Region.INTERNATIONAL,
-    }
-    
-    PRESENCE_MAPPINGS = {
-        # In Person
-        "": Presence.IN_PERSON,  # Default
-        "terminal": Presence.IN_PERSON,
-        "chip": Presence.IN_PERSON,
-        "chip & pin": Presence.IN_PERSON,
-        "face to face": Presence.IN_PERSON,
-        "in person": Presence.IN_PERSON,
-        "card machine": Presence.IN_PERSON,
-        # Online
-        "cnp": Presence.ONLINE,
-        "card not present": Presence.ONLINE,
-        "web": Presence.ONLINE,
-        "online": Presence.ONLINE,
-        "phone": Presence.ONLINE,
-        "moto": Presence.ONLINE,
-        "ecom": Presence.ONLINE,
-        "e-commerce": Presence.ONLINE,
-    }
-    
-    CARD_TYPE_MAPPINGS = {
-        "debit": CardType.DEBIT,
-        "prepaid": CardType.DEBIT,
-        "credit": CardType.CREDIT,
-        "charge": CardType.CREDIT,
-    }
     
     def __init__(self, model: str = "gpt-4-turbo-preview", temperature: float = 0):
         """
         Initialize the extractor.
         
         Args:
-            model: OpenAI model to use (gpt-4-turbo-preview recommended for accuracy)
+            model: OpenAI model to use
             temperature: 0 for deterministic extraction
         """
         self.model = model
@@ -117,24 +36,28 @@ class StatementExtractor:
             model=self.model,
             temperature=self.temperature,
             api_key=os.getenv("OPENAI_API_KEY")
-        ).with_structured_output(ExtractedStatement)
+        ).with_structured_output(ExtractedStatement, method="function_calling")
         
-        # Create the extraction prompt with all mappings
+        # Create the extraction prompt
         self.prompt = ChatPromptTemplate.from_messages([
             ("system", self._get_system_prompt()),
             ("human", "Extract all payment transaction data from this merchant statement:\n\n{statement_text}")
         ])
-        
-        # Also set up a parser for error handling
-        self.parser = PydanticOutputParser(pydantic_object=ExtractedStatement)
     
     def _get_system_prompt(self) -> str:
         """Build the comprehensive system prompt with all mapping rules."""
         return """You are a specialist in extracting structured data from merchant payment statements.
-        
+
 Your task is to extract transaction charge data into a canonical format, normalizing inconsistent terminology.
 
-CRITICAL EXTRACTION RULES:
+CRITICAL: Extract the MERCHANT's business name and address, NOT the payment processor's details.
+- The merchant is the business receiving the statement and paying the fees
+- Do NOT extract Dojo, Paymentsense, Worldpay, or Lloyds' company details
+- Look for "Statement for:", "Merchant:", or business name at the top of the statement
+- Ignore legal footer text about the payment processor
+- If you cannot find the merchant name, use "Unknown" as business_name
+
+MAPPING RULES:
 
 1. SCHEME MAPPINGS (payment network):
    - "Visa", "V Pay" → "visa"
@@ -153,7 +76,7 @@ CRITICAL EXTRACTION RULES:
    
 3. CARD TYPE MAPPINGS:
    - "Debit", "Prepaid" → "debit"
-   - "Credit", "Charge Card" → "credit"
+   - "Credit", "Charge Card", "Corporate", "Purchasing" → "credit"
 
 4. PRESENCE MAPPINGS (how card was used):
    - DEFAULT/BLANK → "inPerson"
@@ -168,16 +91,13 @@ CRITICAL EXTRACTION RULES:
 
 EXTRACTION GUIDELINES:
 - Extract EVERY transaction charge row from the statement
-- The "reasoning" field should briefly explain your categorization logic
+- The "reasoning" field MUST explain your categorization logic for each row
 - Capture charge rates exactly as shown (e.g., "1.53% + £0.03")
 - Include currency symbols in monetary values (e.g., "£1,234.56")
 - Use YYYY-MM-DD format for dates
 - For authorisation_fee, look for "Authorisation Fee" or "Auth Fee" in the statement
 - statement_period should capture the date range (e.g., "01 May to 31 May 2024")
-
-VALIDATION FIELDS:
-- total_value: Extract the statement's total transaction value if shown (for validation)
-- total_charges: Extract the statement's total charges if shown (for validation)
+- total_value and total_charges: Extract statement totals if shown (for validation)
 
 Remember: If you encounter an unrecognized payment scheme, set scheme to "other" and MUST provide the actual scheme name in scheme_other_description."""
     
@@ -194,31 +114,23 @@ Remember: If you encounter an unrecognized payment scheme, set scheme to "other"
             
         Returns:
             Validated ExtractedStatement object
-            
-        Raises:
-            Exception if extraction fails after retries
         """
-        try:
-            logger.info(f"Extracting data using {self.model}")
-            
-            # Create the chain
-            chain = self.prompt | self.llm
-            
-            # Invoke with the statement text
-            result = chain.invoke({
-                "statement_text": statement_text[:50000]  # Limit to ~12k tokens
-            })
-            
-            logger.info(f"Successfully extracted {len(result.transaction_charges)} transaction charges")
-            
-            # Validate the extraction
-            self._validate_extraction(result)
-            
-            return result
-            
-        except Exception as e:
-            logger.error(f"Extraction failed: {str(e)}")
-            raise
+        logger.info(f"Extracting data using {self.model}")
+        
+        # Create the chain
+        chain = self.prompt | self.llm
+        
+        # Invoke with the statement text (limit to prevent token overflow)
+        result = chain.invoke({
+            "statement_text": statement_text[:50000]
+        })
+        
+        logger.info(f"Successfully extracted {len(result.transaction_charges)} transaction charges")
+        
+        # Validate the extraction
+        self._validate_extraction(result)
+        
+        return result
     
     def extract_from_pdf(self, pdf_path: str) -> ExtractedStatement:
         """
@@ -246,21 +158,16 @@ Remember: If you encounter an unrecognized payment scheme, set scheme to "other"
     def _read_pdf(self, pdf_path: str) -> str:
         """Read and extract text from PDF."""
         text = ""
-        try:
-            with open(pdf_path, 'rb') as file:
-                pdf_reader = PyPDF2.PdfReader(file)
-                num_pages = len(pdf_reader.pages)
-                logger.info(f"PDF has {num_pages} pages")
-                
-                for i, page in enumerate(pdf_reader.pages):
-                    page_text = page.extract_text()
-                    text += page_text
-                    logger.debug(f"Page {i+1}: extracted {len(page_text)} characters")
-                    
-        except Exception as e:
-            logger.error(f"Failed to read PDF: {e}")
-            raise
+        with open(pdf_path, 'rb') as file:
+            pdf_reader = PyPDF2.PdfReader(file)
+            num_pages = len(pdf_reader.pages)
+            logger.info(f"PDF has {num_pages} pages")
             
+            for i, page in enumerate(pdf_reader.pages):
+                page_text = page.extract_text()
+                text += page_text
+                logger.debug(f"Page {i+1}: extracted {len(page_text)} characters")
+                    
         return text
     
     def _validate_extraction(self, result: ExtractedStatement) -> None:
@@ -313,12 +220,8 @@ Remember: If you encounter an unrecognized payment scheme, set scheme to "other"
         logger.info(f"Scheme distribution: {scheme_counts}")
         
         # Check for OTHER schemes
-        other_schemes = [
-            t for t in result.transaction_charges 
-            if t.charge_type.scheme == Scheme.OTHER
-        ]
-        if other_schemes:
-            for t in other_schemes:
+        for t in result.transaction_charges:
+            if t.charge_type.scheme == Scheme.OTHER:
                 if not t.charge_type.scheme_other_description:
                     raise ValueError(f"OTHER scheme without description: {t.charge_type_description}")
                 logger.info(f"Found OTHER scheme: {t.charge_type.scheme_other_description}")
