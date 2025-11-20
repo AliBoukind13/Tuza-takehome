@@ -198,8 +198,15 @@ class StatementTransformer:
                 logger.info(
                     f"Bucket {bucket_key}: aggregated {len(aggregate['charges'])} rows: {descriptions}"
                 )
-        
-        return breakdown, len(breakdown)
+
+        # Design choice: sort by percentage split
+        sorted_breakdown = dict(sorted(
+            breakdown.items(),
+            key=lambda x: float(x[1].percentageSplit.decimal),
+            reverse=True
+        ))
+            
+        return sorted_breakdown, len(breakdown)
     
     def _generate_bucket_key(self, charge: TransactionCharge) -> str:
         """Generate bucket key: schemePresenceRegionRealmCardType"""

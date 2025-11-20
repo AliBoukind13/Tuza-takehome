@@ -497,7 +497,8 @@
             </div>
             
             <div class="json-buttons">
-                <button class="btn" onclick="toggleMerchantJson()">NewMerchantStatement</button>
+                <button class="btn" onclick="toggleMerchantJson()">View NewMerchantStatement JSON</button>
+                <button class="btn" onclick="downloadJson()">Download NewMerchantStatement JSON</button>
             </div>
             
             <div class="json-output" id="merchantJsonOutput">
@@ -727,6 +728,33 @@
         function toggleMerchantJson() {
             document.getElementById('merchantJsonOutput').classList.toggle('show');
         }
+        function downloadJson() {
+            if (!merchantData) {
+                showError('No data to download');
+                return;
+            }
+            
+            // Create blob from JSON data
+            const jsonStr = JSON.stringify(merchantData, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            
+            // Create download link
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            
+            // Set filename with timestamp
+            const timestamp = new Date().toISOString().slice(0, 10);
+            const merchantName = (merchantData.merchantName || 'merchant').replace(/[^a-z0-9]/gi, '_');
+            a.download = `${merchantName}_statement_${timestamp}.json`;
+            
+            a.href = url;
+            document.body.appendChild(a);
+            a.click();
+            
+            // Cleanup
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+}
     </script>
 </body>
 </html>

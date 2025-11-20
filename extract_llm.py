@@ -177,6 +177,7 @@ ADDITIONAL EXTRACTION GUIDELINES:
 - Include currency symbols in monetary values (e.g., "£1,234.56")
 - Use YYYY-MM-DD format for dates
 - Ignore secure transaction fees (do NOT include it in total_charges and do not count it as a transaction)
+- Charges should not be negative in your ouput, EVENTHOUGH THEY MIGHT BE NEGATIVE IN THE STATEMENT(take the absolute value)
 """ 
     @retry(
         stop=stop_after_attempt(3),
@@ -226,17 +227,46 @@ ADDITIONAL EXTRACTION GUIDELINES:
         return self.extract_from_text(text)
     
     def _read_pdf(self, pdf_path: str) -> str:
-        """Read and extract text from PDF."""
+        """Read and extract text from PDF with fallback methods."""
         text = ""
-        with open(pdf_path, 'rb') as file:
-            pdf_reader = PyPDF2.PdfReader(file)
-            num_pages = len(pdf_reader.pages)
-            logger.info(f"PDF has {num_pages} pages")
+        
+        # Try PyPDF2 first (existing method)
+        try:
+            with open(pdf_path, 'rb') as file:
+                pdf_reader = PyPDF2.PdfReader(file)
+                num_pages = len(pdf_reader.pages)
+                logger.info(f"PDF has {num_pages} pages")
+                
+                for page in pdf_reader.pages:
+                    page_text = page.extract_text()
+                    if page_text:
+                        text += page_text
+                
+                if text.strip():  # If we got text, return it
+                    return text
+        except Exception as e:
+            logger.warning(f"PyPDF2 failed: {e}")
+        
+        # Fallback to pdfplumber
+        try:
+            import pdfplumber
+            logger.info("Trying pdfplumber")
             
-            for i, page in enumerate(pdf_reader.pages):
-                page_text = page.extract_text()
-                text += page_text
-                    
+            with pdfplumber.open(pdf_path) as pdf:
+                for page in pdf.pages:
+                    page_text = page.extract_text()
+                    if page_text:
+                        text += page_text + "\n"
+            
+            if text.strip():
+                logger.info(f"Successfully extracted with pdfplumber: {len(text)} chars")
+                return text
+        except Exception as e:
+            logger.warning(f"pdfplumber also failed: {e}")
+        
+        if not text:
+            raise ValueError(f"Could not extract text from pdf.Try using text input instead (with the Paste Text Button)")
+        
         return text
     
     def _validate_extraction(self, result: ExtractedStatement) -> None:
